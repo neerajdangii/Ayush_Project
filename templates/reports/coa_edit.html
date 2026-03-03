@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}COA Edit | LIMS{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<style>
+  .coa-sheet { border: 1px solid #d1d5db; background: #fff; padding: 16px; }
+  .coa-meta { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .coa-meta th, .coa-meta td { border: 1px solid #111827; padding: 6px; font-size: 14px; }
+  .readonly-note { color: #b91c1c; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">COA Edit - {{ object.booking.sample_reg_no }}</h5>
+    <div>
+      <a href="{% url 'reports:coa_print' object.pk %}" target="_blank" class="btn btn-sm btn-outline-secondary">Print A4</a>
+      <a href="{% url 'reports:coa_doc' object.pk %}" target="_blank" class="btn btn-sm btn-outline-dark">Word View</a>
+    </div>
+  </div>
+  <div class="card-body coa-sheet">
+    <div class="d-flex justify-content-between mb-2">
+      <h4 class="mb-0">Certificate of Analysis</h4>
+      <div><strong>Certificate No.:</strong> {{ object.certificate_no }}</div>
+    </div>
+
+    <table class="coa-meta">
+      <tr><th>Booking Date</th><td>{{ object.booking.booking_date|date:"d/m/Y" }}</td><th>Sample Reg No</th><td>{{ object.booking.sample_reg_no }}</td></tr>
+      <tr><th>Customer</th><td>{{ object.booking.customer.name }}</td><th>Sample Name</th><td>{{ object.booking.sample_name.name }}</td></tr>
+      <tr><th>Manufacturer</th><td>{{ object.booking.manufacturer.name }}</td><th>Submitter</th><td>{{ object.booking.submitter.name }}</td></tr>
+      <tr><th>Protocol</th><td>{{ object.booking.protocol.name }}</td><th>UOM</th><td>{{ object.booking.uom.name }}</td></tr>
+      <tr><th>Test Performed</th><td colspan="3">{{ object.test_names }}</td></tr>
+      <tr><th>Analysis Start</th><td>{{ object.booking.analysis_start_date|date:"d/m/Y" }}</td><th>Analysis End</th><td>{{ object.analysis_end_date|date:"d/m/Y" }}</td></tr>
+    </table>
+
+    <hr>
+    <h5 class="mb-1">Result of Analysis</h5>
+    <p class="readonly-note mb-2">Only this section is editable.</p>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.ceo_content }}
+      <div class="mt-3">
+        <button class="btn btn-primary" type="submit">Update Result Section</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  tinymce.init({
+    selector: '#id_ceo_content',
+    height: 450,
+    menubar: true,
+    plugins: 'lists table link code',
+    toolbar: 'undo redo | blocks | bold italic underline | bullist numlist | table link | alignleft aligncenter alignright | code'
+  });
+</script>
+{% endblock %}

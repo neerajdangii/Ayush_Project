@@ -1,49 +1,23 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
+# Virtual environment
+venv/
 env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheel/
-share/python-wheels/
 
-# Django stuff:
-*.log
-local_settings.py
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment variables
+.env
+
+# Static files collected
+staticfiles/
+
+# Database
 db.sqlite3
-media
-staticfiles
 
 # VS Code
 .vscode/
 
-# Python virtualenv
-.venv/
-
-# VS Code
-.settings/
-
-# pipenv
-Pipfile.lock
-
-# mypy
-.mypy_cache/
-
-# pyenv
-.python-version
+# OS
+.DS_Store

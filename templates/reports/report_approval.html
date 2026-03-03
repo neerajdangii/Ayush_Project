@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Report Approval | LIMS{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h5 class="mb-0">Report Workflow for {{ object.booking.sample_reg_no }}</h5>
+  </div>
+  <div class="card-body">
+    <div class="mb-3">
+      <strong>Booking:</strong> {{ object.booking.sample_name.name }} | {{ object.booking.customer.name }}
+    </div>
+
+    <form method="post" class="row g-3">
+      {% csrf_token %}
+      <div class="col-md-4">
+        <label class="form-label">Analysis Start Date</label>
+        <div class="input-group">
+          {{ form.analysis_start_date }}
+          <button class="btn btn-outline-secondary date-open-btn" type="button" data-target="id_analysis_start_date">📅</button>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Analysis End Date</label>
+        <div class="input-group">
+          {{ form.report_end_date }}
+          <button class="btn btn-outline-secondary date-open-btn" type="button" data-target="id_report_end_date">📅</button>
+        </div>
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn btn-primary">Confirm and Approve</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+(() => {
+  const pickerMap = {};
+  document.querySelectorAll('.date-open-btn').forEach((btn) => {
+    const input = document.getElementById(btn.dataset.target);
+    if (!input) return;
+    pickerMap[btn.dataset.target] = flatpickr(input, {
+      dateFormat: 'd/m/Y',
+      allowInput: true,
+      clickOpens: false
+    });
+    btn.addEventListener('click', () => pickerMap[btn.dataset.target].open());
+  });
+})();
+</script>
+{% endblock %}

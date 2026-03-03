@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} | LIMS{% endblock %}
+{% block content %}
+<div class="mb-3">
+  <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm">Dashboard</a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">{{ title }}</h5>
+    <a href="{% url 'bookings:master_add' master_slug %}" class="btn btn-sm btn-primary">Add</a>
+  </div>
+  <div class="card-body">
+    <div class="mb-3 d-flex gap-2 flex-wrap">
+      <a href="{% url 'bookings:master_list' 'customer' %}" class="btn btn-outline-dark btn-sm">Customer</a>
+      <a href="{% url 'bookings:master_list' 'submitter' %}" class="btn btn-outline-dark btn-sm">Submitter</a>
+      <a href="{% url 'bookings:master_list' 'manufacturer' %}" class="btn btn-outline-dark btn-sm">Manufacturer</a>
+      <a href="{% url 'bookings:master_list' 'sample-name' %}" class="btn btn-outline-dark btn-sm">Sample Name</a>
+      <a href="{% url 'bookings:master_list' 'test' %}" class="btn btn-outline-dark btn-sm">Test</a>
+      <a href="{% url 'bookings:master_list' 'protocol' %}" class="btn btn-outline-dark btn-sm">Protocol</a>
+      <a href="{% url 'bookings:master_list' 'uom' %}" class="btn btn-outline-dark btn-sm">UOM</a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped">
+        <thead class="table-light">
+          <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for obj in object_list %}
+          <tr>
+            <td>{{ obj.name }}</td>
+            <td>
+              {% if obj.is_active %}
+              <span class="badge text-bg-success">Active</span>
+              {% else %}
+              <span class="badge text-bg-secondary">Inactive</span>
+              {% endif %}
+            </td>
+            <td>{{ obj.created_at|date:'Y-m-d H:i' }}</td>
+            <td>
+              <a href="{% url 'bookings:master_edit' master_slug obj.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+              <a href="{% url 'bookings:master_delete' master_slug obj.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center">No records found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

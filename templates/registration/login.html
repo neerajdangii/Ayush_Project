@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Login | LIMS{% endblock %}
+{% block content %}
+<section class="auth-shell">
+  <aside class="auth-left">
+    <h1>Lab Information Management System</h1>
+    <p class="sub">Secure login for booking and report workflow.</p>
+  </aside>
+
+  <section class="auth-right">
+    <h2>Sign In</h2>
+    <p class="sub">Enter username and password</p>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+
+      <label for="id_username">Username</label>
+      {{ form.username }}
+
+      <label for="id_password">Password</label>
+      {{ form.password }}
+
+      <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+    </form>
+  </section>
+</section>
+{% endblock %}

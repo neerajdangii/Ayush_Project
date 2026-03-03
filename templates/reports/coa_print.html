@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}COA Print | LIMS{% endblock %}
+{% block extra_head %}
+<style>
+  @page { size: A4; margin: 15mm; }
+  .print-page { background: #fff; padding: 20px; border: 1px solid #ccc; }
+  .head-row { display: flex; justify-content: space-between; }
+  .meta-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  .meta-table td, .meta-table th { border: 1px solid #333; padding: 8px; }
+  @media print {
+    nav, .alert, .btn { display: none !important; }
+    .container { width: 100%; max-width: 100%; }
+    .print-page { border: none; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="mb-3">
+  <button class="btn btn-primary" onclick="window.print()">Print</button>
+</div>
+<div class="print-page">
+  <div class="head-row">
+    <h4>Certificate of Analysis</h4>
+    <div><strong>Certificate No.:</strong> {{ report.certificate_no }}</div>
+  </div>
+
+  <table class="meta-table">
+    <tr><th>Booking Date</th><td>{{ report.booking.booking_date|date:"d/m/Y" }}</td><th>Sample Reg No</th><td>{{ report.booking.sample_reg_no }}</td></tr>
+    <tr><th>Customer</th><td>{{ report.booking.customer.name }}</td><th>Sample Name</th><td>{{ report.booking.sample_name.name }}</td></tr>
+    <tr><th>Protocol</th><td>{{ report.booking.protocol.name }}</td><th>UOM</th><td>{{ report.booking.uom.name }}</td></tr>
+    <tr><th>Test Performed</th><td colspan="3">{{ report.test_names }}</td></tr>
+    <tr><th>Analysis End Date</th><td>{{ report.analysis_end_date|date:"d/m/Y" }}</td><th>Booking Type</th><td>{{ report.booking.get_booking_type_display }}</td></tr>
+  </table>
+
+  <div class="mt-4">
+    <h5>Result / Observation</h5>
+    <div>{{ report.ceo_content|safe }}</div>
+  </div>
+
+  <div class="row mt-5">
+    <div class="col-6">
+      <strong>Manager</strong><br>
+      {{ report.manager_name }}<br>
+      {{ report.manager_signature }}
+    </div>
+    <div class="col-6 text-end">
+      <strong>Incharge</strong><br>
+      {{ report.incharge_name|default:'Incharge' }}<br>
+      {{ report.incharge_signature|default:'Digital Sign' }}
+    </div>
+  </div>
+</div>
+{% endblock %}

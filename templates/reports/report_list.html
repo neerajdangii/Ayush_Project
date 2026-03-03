@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Reports | LIMS{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h5 class="mb-0">Reports</h5>
+  </div>
+  <div class="card-body table-responsive">
+    <table class="table table-bordered table-striped align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Certificate No</th>
+          <th>Sample Reg No</th>
+          <th>Sample</th>
+          <th>Status</th>
+          <th>Manager</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reports %}
+        <tr>
+          <td>{{ r.certificate_no }}</td>
+          <td>{{ r.booking.sample_reg_no }}</td>
+          <td>{{ r.booking.sample_name.name }}</td>
+          <td>{{ r.get_status_display }}</td>
+          <td>{{ r.manager_name|default:'-' }}</td>
+          <td>
+            <a class="btn btn-sm btn-primary" href="{% url 'reports:coa_edit' r.pk %}">Edit COA</a>
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'reports:coa_print' r.pk %}" target="_blank">Print COA</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center">No reports found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if is_paginated %}
+    <nav>
+      <ul class="pagination">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">Previous</span></li>
+        {% endif %}
+
+        <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">Next</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

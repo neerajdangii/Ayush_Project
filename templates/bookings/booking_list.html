@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}Bookings | LIMS{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Bookings</h5>
+    <a href="{% url 'bookings:create' %}" class="btn btn-sm btn-primary">New Booking</a>
+  </div>
+  <div class="card-body">
+    <form method="get" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="search_by" class="form-select">
+          <option value="sample_reg_no" {% if search_by == 'sample_reg_no' %}selected{% endif %}>Sample Reg. No</option>
+          <option value="sample" {% if search_by == 'sample' %}selected{% endif %}>Sample Name</option>
+          <option value="customer" {% if search_by == 'customer' %}selected{% endif %}>Customer</option>
+          <option value="batch_no" {% if search_by == 'batch_no' %}selected{% endif %}>Batch No</option>
+        </select>
+      </div>
+      <div class="col-md-5">
+        <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Type and search...">
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-primary w-100" type="submit">Search</button>
+      </div>
+      <div class="col-md-2">
+        <a href="{% url 'bookings:list' %}" class="btn btn-outline-secondary w-100">Reset</a>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Sample Reg No</th>
+            <th>Booking Date</th>
+            <th>Customer</th>
+            <th>Sample Name</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th style="width: 260px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in bookings %}
+          <tr>
+            <td>{{ b.sample_reg_no }}</td>
+            <td>{{ b.booking_date|date:"d/m/Y" }}</td>
+            <td>{{ b.customer.name }}</td>
+            <td>{{ b.sample_name.name }}</td>
+            <td>{{ b.get_booking_type_display }}</td>
+            <td>
+              {% if b.status == 'approved' %}
+              <span class="badge text-bg-success">Approved</span>
+              {% else %}
+              <span class="badge text-bg-warning">Pending</span>
+              {% endif %}
+            </td>
+            <td>
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'bookings:create' %}?duplicate={{ b.pk }}">Duplicate</a>
+              {% if b.status == 'approved' %}
+              <a class="btn btn-sm btn-primary" href="{% url 'reports:approval' b.pk %}">Report</a>
+              {% else %}
+              <form method="post" action="{% url 'bookings:approve' b.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-success" type="submit">Approve</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-center">No bookings found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if is_paginated %}
+    <nav>
+      <ul class="pagination">
+        {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?search_by={{ search_by }}&q={{ q }}&page={{ page_obj.previous_page_number }}">Previous</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Previous</span></li>
+        {% endif %}
+
+        <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+
+        {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?search_by={{ search_by }}&q={{ q }}&page={{ page_obj.next_page_number }}">Next</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Next</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

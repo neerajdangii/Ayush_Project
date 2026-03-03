@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Create User | LIMS{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h5 class="mb-0">Create User</h5>
+  </div>
+  <div class="card-body">
+    <form method="post" class="row g-3">
+      {% csrf_token %}
+
+      <div class="col-md-6">
+        <label class="form-label" for="id_username">Username</label>
+        {{ form.username }}
+        {{ form.username.errors }}
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label" for="id_email">Email</label>
+        {{ form.email }}
+        {{ form.email.errors }}
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label" for="id_password1">Password</label>
+        {{ form.password1 }}
+        {{ form.password1.errors }}
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label" for="id_password2">Confirm Password</label>
+        {{ form.password2 }}
+        {{ form.password2.errors }}
+      </div>
+
+      <div class="col-md-3 form-check mt-4 ms-3">
+        {{ form.is_staff }}
+        <label class="form-check-label" for="id_is_staff">Staff user</label>
+      </div>
+
+      <div class="col-md-3 form-check mt-4 ms-3">
+        {{ form.is_superuser }}
+        <label class="form-check-label" for="id_is_superuser">Superuser</label>
+      </div>
+
+      <div class="col-md-12">
+        <label class="form-label">Assign Role Groups</label>
+        {{ form.groups }}
+        {{ form.groups.errors }}
+      </div>
+
+      <div class="col-12">
+        <button class="btn btn-primary" type="submit">Create User</button>
+        <a class="btn btn-outline-secondary" href="{% url 'dashboard' %}">Back to Dashboard</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
