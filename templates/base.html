@@ -18,6 +18,10 @@
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="mainNav">
+        <div class="nav-utility me-3">
+          <button type="button" class="nav-icon-btn" id="navBackBtn" aria-label="Go back">&#8592;</button>
+          <button type="button" class="nav-icon-btn" id="navReloadBtn" aria-label="Reload page">&#8635;</button>
+        </div>
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item"><a class="nav-link" href="{% url 'bookings:create' %}">New Booking</a></li>
           <li class="nav-item"><a class="nav-link" href="{% url 'bookings:list' %}">Bookings</a></li>
@@ -47,6 +51,22 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const navBackBtn = document.getElementById('navBackBtn');
+    const navReloadBtn = document.getElementById('navReloadBtn');
+
+    if (navBackBtn) {
+      navBackBtn.addEventListener('click', () => {
+        window.history.back();
+      });
+    }
+
+    if (navReloadBtn) {
+      navReloadBtn.addEventListener('click', () => {
+        window.location.reload();
+      });
+    }
+  </script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>

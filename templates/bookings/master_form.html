@@ -9,16 +9,24 @@
   <div class="card-body">
     <form method="post" class="row g-3">
       {% csrf_token %}
-      <div class="col-md-8">
-        <label class="form-label">Name</label>
-        {{ form.name }}
-      </div>
-      <div class="col-md-4 d-flex align-items-end">
-        <div class="form-check mt-2">
-          {{ form.is_active }}
-          <label class="form-check-label" for="id_is_active">Active</label>
+      {% for field in form %}
+        {% if field.name == 'is_active' %}
+        <div class="col-md-4 d-flex align-items-end">
+          <div class="form-check mt-2">
+            {{ field }}
+            <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          </div>
         </div>
-      </div>
+        {% else %}
+        <div class="col-12 {% if field.name == 'sort_order' %}col-md-4{% endif %}">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}
+          <div class="text-danger small mt-1">{{ field.errors }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+      {% endfor %}
       <div class="col-12">
         <button class="btn btn-primary" type="submit">Save</button>
       </div>

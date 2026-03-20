@@ -1,37 +1,86 @@
 {% extends 'base.html' %}
 {% block title %}Reports | LIMS{% endblock %}
 {% block content %}
+{% if show_saved_popup and saved_booking_id %}
+<div class="page-save-popup" role="status">
+  <strong>Report updated successfully</strong>
+  <span>Booking ID: {{ saved_booking_id }}</span>
+</div>
+{% endif %}
 <div class="card shadow-sm">
   <div class="card-header">
     <h5 class="mb-0">Reports</h5>
   </div>
   <div class="card-body table-responsive">
+    <form method="get" class="row g-2 mb-3">
+      <div class="col-md-3">
+        <select name="search_by" class="form-select">
+          <option value="booking_id" {% if search_by == 'booking_id' %}selected{% endif %}>Booking ID</option>
+          <option value="sample_reg" {% if search_by == 'sample_reg' %}selected{% endif %}>Sample Reg. No</option>
+          <option value="batch_no" {% if search_by == 'batch_no' %}selected{% endif %}>Batch No</option>
+          <option value="customer" {% if search_by == 'customer' %}selected{% endif %}>Customer</option>
+          <option value="sample" {% if search_by == 'sample' %}selected{% endif %}>Sample Name</option>
+        </select>
+      </div>
+      <div class="col-md-5">
+        <input type="text" class="form-control" name="q" value="{{ search_query }}" placeholder="Type and search...">
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-primary w-100" type="submit">Search</button>
+      </div>
+      <div class="col-md-2">
+        <a href="{% url 'reports:list' %}" class="btn btn-outline-secondary w-100">Reset</a>
+      </div>
+    </form>
     <table class="table table-bordered table-striped align-middle">
       <thead class="table-light">
         <tr>
+          <th>#</th>
           <th>Certificate No</th>
           <th>Sample Reg No</th>
+          <th>Booking ID</th>
           <th>Sample</th>
+          <th>Remarks</th>
           <th>Status</th>
-          <th>Manager</th>
+          <th>Modifier</th>
           <th>Action</th>
         </tr>
       </thead>
       <tbody>
         {% for r in reports %}
         <tr>
+          <td>{{ forloop.counter }}</td>
           <td>{{ r.certificate_no }}</td>
-          <td>{{ r.booking.sample_reg_no }}</td>
+          <td>
+            {{ r.booking.sample_reg_no }}
+            {% if r.booking.batch_no %}
+            <div class="text-muted small">Batch: {{ r.booking.batch_no }}</div>
+            {% endif %}
+          </td>
+          <td><span class="tracking-chip">{{ r.booking.tracking_code }}</span></td>
           <td>{{ r.booking.sample_name.name }}</td>
-          <td>{{ r.get_status_display }}</td>
+          <td>{{ r.remark_text|default:'-'|truncatechars:120 }}</td>
+          <td>
+            {% if r.final_outcome == 'pass' %}
+            <span class="badge text-bg-success">Pass</span>
+            {% else %}
+            <span class="badge text-bg-secondary">Draft</span>
+            {% endif %}
+          </td>
           <td>{{ r.manager_name|default:'-' }}</td>
           <td>
-            <a class="btn btn-sm btn-primary" href="{% url 'reports:coa_edit' r.pk %}">Edit COA</a>
-            <a class="btn btn-sm btn-outline-secondary" href="{% url 'reports:coa_print' r.pk %}" target="_blank">Print COA</a>
+            <div class="d-flex flex-wrap gap-2">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'reports:coa_print' r.pk %}?autoprint=1" target="_blank">COA</a>
+              <a class="btn btn-sm btn-outline-success" href="{% url 'reports:coa_print' r.pk %}?plain=1&autoprint=1" target="_blank">COA Plain</a>
+              <a class="btn btn-sm btn-outline-info" href="{% url 'reports:coa_print' r.pk %}?doc=test&autoprint=1" target="_blank">Test Report</a>
+              <a class="btn btn-sm btn-outline-warning" href="{% url 'reports:coa_print' r.pk %}?doc=test&plain=1&autoprint=1" target="_blank">Test Report Plain</a>
+              <a class="btn btn-sm btn-primary" href="{% url 'reports:coa_edit' r.pk %}">Edit</a>
+              <a class="btn btn-sm btn-outline-dark" href="{% url 'reports:coa_print' r.pk %}" target="_blank">View</a>
+            </div>
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" class="text-center">No reports found.</td></tr>
+        <tr><td colspan="9" class="text-center">No reports found.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -40,7 +89,9 @@
     <nav>
       <ul class="pagination">
         {% if page_obj.has_previous %}
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}&search_by={{ search_by }}">Previous</a>
+        </li>
         {% else %}
         <li class="page-item disabled"><span class="page-link">Previous</span></li>
         {% endif %}
@@ -48,7 +99,9 @@
         <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
 
         {% if page_obj.has_next %}
-        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}&search_by={{ search_by }}">Next</a>
+        </li>
         {% else %}
         <li class="page-item disabled"><span class="page-link">Next</span></li>
         {% endif %}
@@ -57,4 +110,18 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const popup = document.querySelector('.page-save-popup');
+    if (!popup) {
+      return;
+    }
+    setTimeout(() => {
+      popup.classList.add('is-hidden');
+    }, 3500);
+  })();
+</script>
 {% endblock %}

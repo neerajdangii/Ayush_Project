@@ -1,0 +1,492 @@
+:root {
+  --coa-page-width: 210mm;
+  --coa-page-height: 297mm;
+  --coa-page-padding-x: 7mm;
+  --coa-page-padding-bottom: 8mm;
+  --coa-letterhead-top: 42mm;
+  --coa-plain-top: 42mm;
+  --coa-screen-gutter: 12px;
+  --coa-border: #1f2937;
+  --coa-font-sans: "Calibri", "Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande", sans-serif;
+}
+
+html {
+  box-sizing: border-box;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+body.coa-standalone {
+  margin: 0;
+  padding: 0;
+  font-family: var(--coa-font-sans);
+  color: #0f172a;
+  background: #eef2f7;
+  overflow-x: hidden;
+}
+
+.coa-print-page {
+  width: calc(100vw - (var(--coa-screen-gutter) * 2));
+  max-width: var(--coa-page-width);
+  margin: 12px auto;
+}
+
+.coa-prototype-root,
+.coa-pagination-source {
+  display: none;
+}
+
+.coa-measure-root {
+  position: absolute;
+  left: -99999px;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.coa-print-wrapper {
+  width: 100%;
+  min-height: var(--coa-page-height);
+  height: auto;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+  page-break-after: always;
+  break-after: page;
+  box-shadow: 0 18px 60px rgba(15, 23, 42, 0.18);
+  background-color: #fff;
+}
+
+.coa-rendered-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.coa-print-wrapper:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+
+.coa-letterhead {
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: 100% 100%;
+  padding: var(--coa-letterhead-top) var(--coa-page-padding-x) var(--coa-page-padding-bottom);
+}
+
+.coa-plain {
+  padding: var(--coa-plain-top) var(--coa-page-padding-x) var(--coa-page-padding-bottom);
+}
+
+.coa-body {
+  min-height: calc(var(--coa-page-height) - var(--coa-letterhead-top) - var(--coa-page-padding-bottom));
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  position: relative;
+  padding: 0;
+  line-height: 1.1;
+}
+
+.coa-letterhead .coa-body {
+  padding: 0;
+}
+
+.coa-meta-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  width: 100%;
+  margin-bottom: 1px;
+  font-size: 12px;
+}
+
+.coa-meta-bar__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  text-align: right;
+  margin-left: auto;
+}
+
+.coa-cert{
+   font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.coa-page-info {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-top: 50px;
+  margin-bottom: 2px;
+}
+
+.coa-cert {
+  letter-spacing: normal;
+  font-weight: 500;
+}
+
+.coa-meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 12px;
+  line-height: 1.25;
+  margin-bottom: 8px;
+}
+
+.coa-meta-table th,
+.coa-meta-table td {
+  border: 1px solid #000;
+  padding: 4px 6px;
+  vertical-align: top;
+  text-align: left;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  background-color: transparent !important;
+}
+
+.coa-meta-table th {
+  font-weight: 700;
+  white-space: normal;
+  background-color: transparent; /* or whatever your th background is */
+}
+ .coa-meta-table th:nth-child(4) {
+  padding-left: 8px;
+}
+.coa-meta-table tr td,
+.coa-meta-table tr th {
+  background-color: inherit;
+}
+.coa-meta-table .meta-secondary {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.coa-meta-table .full-value {
+  white-space: normal;
+}
+
+.coa-section-title {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 4px 4px;
+  font-size: 12px;
+}
+
+.coa-page-main {
+  padding-bottom: 150px;
+}
+
+.coa-result {
+  font-size: 12px;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.coa-result > :first-child {
+  margin-top: 0;
+}
+
+.coa-result > :last-child {
+  margin-bottom: 0;
+}
+
+.coa-result p {
+  margin: 0 0 6px;
+}
+
+.coa-result table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  border: 1px solid #111 !important;
+  table-layout: fixed;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.coa-result th,
+.coa-result td {
+  border: 1px solid #111 !important;
+  padding: 2px 3px !important;
+  vertical-align: top;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.coa-result th {
+  font-weight: 700;
+}
+
+.coa-end-report {
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+  margin: 1px 0 4px;
+}
+
+.coa-remark {
+  margin: 0 0 8px;
+  padding: 4px 6px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.coa-signature-line {
+  position: absolute;
+  left: 0;
+  right: 8px;
+  bottom: 92px;
+  border-top: 1px solid rgba(15, 23, 42, 0.3);
+}
+
+.coa-footer-row {
+  position: absolute;
+  left: 0;
+  right: 10px;
+  bottom: 8px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-end;
+  gap: 36px;
+}
+
+.coa-footer-barcode {
+  position: absolute;
+  right: 0;
+  bottom: 15px;
+  width: 110px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+.coa-footer-signatures {
+  width: 100%;
+  min-width: 0;
+  padding-bottom: 86px;
+}
+
+.coa-signatures {
+  display: flex;
+  justify-content: space-between;
+  gap: 36px;
+}
+
+.coa-signature {
+  flex: 1;
+  text-align: center;
+}
+
+.coa-signature__stamp {
+  height: 52px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.coa-signature__stamp img {
+  max-width: 100%;
+  max-height: 52px;
+  object-fit: contain;
+}
+
+.coa-signature__name,
+.coa-signature__label {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.coa-signature__name {
+  margin-bottom: 1px;
+}
+
+.coa-barcode {
+  width: 85px;
+  text-align: center;
+}
+
+.coa-signature__label {
+  font-weight: 600;
+}
+
+.coa-qr-code,
+#coa-qr-code,
+.coa-qr-code,
+.coa-barcode img {
+  width: 70px;
+  height: 70px;
+  margin:auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.coa-qr-code canvas,
+#coa-qr-code canvas,
+.coa-qr-code canvas,
+.coa-qr-code img {
+  width: 70px !important;
+  height: 70px !important;
+  display: block;
+}
+
+
+.coa-draft-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-24deg);
+  font-size: 72px;
+  color: rgba(220, 38, 38, 0.2);
+  font-weight: 700;
+  letter-spacing: 10px;
+  pointer-events: none;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+.coa-print-wrapper img,
+.coa-print-wrapper canvas,
+.coa-print-wrapper svg {
+  max-width: 100%;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --coa-letterhead-top: 34mm;
+    --coa-plain-top: 34mm;
+  }
+
+  .coa-page-main {
+    padding-bottom: 132px;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --coa-screen-gutter: 8px;
+    --coa-letterhead-top: 28mm;
+    --coa-plain-top: 28mm;
+  }
+
+  .coa-print-page {
+    width: calc(100vw - (var(--coa-screen-gutter) * 2));
+    margin: 8px auto;
+  }
+
+  .coa-print-wrapper {
+    overflow: visible;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+  }
+
+  .coa-page-info,
+  .coa-cert,
+  .coa-meta-table,
+  .coa-meta-table .meta-secondary,
+  .coa-section-title,
+  .coa-result,
+  .coa-result table,
+  .coa-result th,
+  .coa-result td,
+  .coa-end-report,
+  .coa-remark,
+  .coa-signature__name,
+  .coa-signature__label {
+    font-size: 11px;
+  }
+
+  .coa-meta-table th,
+  .coa-meta-table td,
+  .coa-result th,
+  .coa-result td {
+    padding: 3px 4px !important;
+  }
+
+  .coa-signature-line {
+    right: 0;
+    bottom: 84px;
+  }
+
+  .coa-footer-row {
+    right: 0;
+    bottom: 6px;
+    gap: 18px;
+  }
+
+  .coa-footer-barcode {
+    width: 88px;
+    bottom: 12px;
+  }
+
+  .coa-footer-signatures {
+    padding-bottom: 78px;
+  }
+
+  .coa-signatures {
+    gap: 16px;
+  }
+
+  .coa-barcode,
+  .coa-qr-code,
+  #coa-qr-code,
+  .coa-barcode img,
+  .coa-qr-code canvas,
+  #coa-qr-code canvas,
+  .coa-qr-code img {
+    width: 56px !important;
+    height: 56px !important;
+  }
+
+  .coa-draft-watermark {
+    font-size: 40px;
+    letter-spacing: 4px;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body.coa-standalone {
+    background: #fff;
+  }
+
+  .coa-print-page {
+    width: 100%;
+    margin: 0;
+  }
+
+  .coa-print-wrapper {
+    width: 210mm;
+    min-height: 297mm;
+    height: 297mm;
+    box-shadow: none;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

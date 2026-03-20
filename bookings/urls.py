@@ -4,6 +4,7 @@ from .views import (
     BookingApproveView,
     BookingCreateView,
     BookingListView,
+    BookingUpdateView,
     InlineMasterCreateView,
     MasterCreateView,
     MasterDeleteView,
@@ -16,6 +17,7 @@ app_name = "bookings"
 urlpatterns = [
     path("", BookingListView.as_view(), name="list"),
     path("new/", BookingCreateView.as_view(), name="create"),
+    path("<int:pk>/edit/", BookingUpdateView.as_view(), name="edit"),
     path("<int:pk>/approve/", BookingApproveView.as_view(), name="approve"),
     path("masters/<slug:slug>/", MasterListView.as_view(), name="master_list"),
     path("masters/<slug:slug>/add/", MasterCreateView.as_view(), name="master_add"),

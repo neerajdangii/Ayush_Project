@@ -1,62 +1,118 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+{% load static %}
 {% block title %}COA Edit | LIMS{% endblock %}
 
 {% block extra_head %}
-<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
-<style>
-  .coa-sheet { border: 1px solid #d1d5db; background: #fff; padding: 16px; }
-  .coa-meta { width: 100%; border-collapse: collapse; margin-top: 8px; }
-  .coa-meta th, .coa-meta td { border: 1px solid #111827; padding: 6px; font-size: 14px; }
-  .readonly-note { color: #b91c1c; font-weight: 600; }
-</style>
+{% if tinymce_api_key %}
+<script src="https://cdn.tiny.cloud/1/{{ tinymce_api_key }}/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+{% else %}
+<script src="{% static 'js/tinymce/tinymce.min.js' %}"></script>
+{% endif %}
+<link rel="stylesheet" href="{% static 'css/coa_edit.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="card shadow-sm">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <h5 class="mb-0">COA Edit - {{ object.booking.sample_reg_no }}</h5>
-    <div>
-      <a href="{% url 'reports:coa_print' object.pk %}" target="_blank" class="btn btn-sm btn-outline-secondary">Print A4</a>
-      <a href="{% url 'reports:coa_doc' object.pk %}" target="_blank" class="btn btn-sm btn-outline-dark">Word View</a>
-    </div>
+
+{% if show_saved_popup %}
+<div class="coa-save-popup" role="status">
+  <strong>Result updated successfully</strong>
+  <span>Booking ID: {{ object.booking.tracking_code }}</span>
+</div>
+{% endif %}
+
+<div class="topbar coa-edit-topbar no-print">
+  <div>
+    <strong>COA Edit</strong>
+    <div class="sub">Sample: {{ object.booking.sample_reg_no }}</div>
   </div>
-  <div class="card-body coa-sheet">
-    <div class="d-flex justify-content-between mb-2">
-      <h4 class="mb-0">Certificate of Analysis</h4>
-      <div><strong>Certificate No.:</strong> {{ object.certificate_no }}</div>
-    </div>
 
-    <table class="coa-meta">
-      <tr><th>Booking Date</th><td>{{ object.booking.booking_date|date:"d/m/Y" }}</td><th>Sample Reg No</th><td>{{ object.booking.sample_reg_no }}</td></tr>
-      <tr><th>Customer</th><td>{{ object.booking.customer.name }}</td><th>Sample Name</th><td>{{ object.booking.sample_name.name }}</td></tr>
-      <tr><th>Manufacturer</th><td>{{ object.booking.manufacturer.name }}</td><th>Submitter</th><td>{{ object.booking.submitter.name }}</td></tr>
-      <tr><th>Protocol</th><td>{{ object.booking.protocol.name }}</td><th>UOM</th><td>{{ object.booking.uom.name }}</td></tr>
-      <tr><th>Test Performed</th><td colspan="3">{{ object.test_names }}</td></tr>
-      <tr><th>Analysis Start</th><td>{{ object.booking.analysis_start_date|date:"d/m/Y" }}</td><th>Analysis End</th><td>{{ object.analysis_end_date|date:"d/m/Y" }}</td></tr>
-    </table>
-
-    <hr>
-    <h5 class="mb-1">Result of Analysis</h5>
-    <p class="readonly-note mb-2">Only this section is editable.</p>
-    <form method="post">
-      {% csrf_token %}
-      {{ form.ceo_content }}
-      <div class="mt-3">
-        <button class="btn btn-primary" type="submit">Update Result Section</button>
-      </div>
-    </form>
+  <div class="nav">
+    <a href="{% url 'reports:coa_print' object.pk %}?autoprint=1" target="_blank">Print A4</a>
+    <a href="{% url 'reports:coa_doc' object.pk %}" target="_blank">Word View</a>
   </div>
 </div>
+
+<div class="coa-editor-shell">
+  <h2>Certificate of Analysis</h2>
+  <div class="summary-toggle no-print">
+    <button type="button" id="coa-summary-toggle">Show Sample Details</button>
+  </div>
+  <div class="tracking-banner no-print">
+    <div class="tracking-banner__current">
+      <div class="label">Booking ID</div>
+      <code class="tracking-banner__value">{{ object.booking.tracking_code }}</code>
+      <button type="button" class="btn btn-sm btn-outline-primary copy-tracking" data-copy="{{ object.booking.tracking_code }}">Copy</button>
+    </div>
+    <div class="tracking-banner__history">
+      <div class="label">Sample Reg. No.</div>
+      <code class="tracking-banner__value">{{ object.booking.sample_reg_no }}</code>
+    </div>
+  </div>
+  <div class="coa-summary is-hidden" id="coa-summary">
+    <div><span>Certificate No.</span>{{ object.certificate_no }}</div>
+    <div><span>Sample Reg No.</span>{{ object.booking.sample_reg_no }}</div>
+    <div><span>Sample Name</span>{{ object.booking.sample_name.name }}</div>
+    <div><span>Customer</span>{{ object.booking.customer.name }}</div>
+    <div><span>Analysis Start</span>{{ object.booking.analysis_start_date|date:"d/m/Y" }}</div>
+    <div><span>Analysis End</span>{{ object.analysis_end_date|date:"d/m/Y" }}</div>
+  </div>
+
+  <div class="coa-section-title">
+    RESULT OF ANALYSIS
+  </div>
+
+  <div class="readonly-note">
+    Only this section is editable.
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="coa-result">
+      {{ form.ceo_content }}
+    </div>
+    <div class="coa-meta-card">
+      <div class="coa-meta-row">
+        <div class="coa-meta-field">
+          <label for="id_final_outcome">Final Outcome</label>
+          {{ form.final_outcome }}
+        </div>
+        <div class="coa-meta-field">
+          <label>Report Date</label>
+          {% with date_part=object.analysis_end_date|date:"d-M-y" fallback_date=object.updated_at|date:"d-M-y" time_part=object.updated_at|date:"h:i:s A" %}
+          <input type="text" class="form-control" value="{% if date_part %}{{ date_part }}{% else %}{{ fallback_date }}{% endif %} {{ time_part }}" readonly>
+          <small>Auto-set from analysis completion &amp; last update timestamp.</small>
+          {% endwith %}
+        </div>
+        <div class="coa-meta-field">
+          <label>Certificate No.</label>
+          <input type="text" class="form-control" value="{{ object.certificate_no }}" readonly>
+        </div>
+      </div>
+      <div class="coa-meta-row">
+        <div class="coa-meta-field">
+          <label for="id_selected_remark">Select Remark</label>
+          {{ form.selected_remark }}
+        </div>
+        <div class="coa-meta-field remarks-textarea">
+          <label for="id_remark_text">Remarks</label>
+          {{ form.remark_text }}
+        </div>
+      </div>
+    </div>
+    <div class="no-print" style="margin-top:15px;">
+      <button class="btn btn-primary" type="submit">
+        Update Result Section
+      </button>
+    </div>
+  </form>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
-<script>
-  tinymce.init({
-    selector: '#id_ceo_content',
-    height: 450,
-    menubar: true,
-    plugins: 'lists table link code',
-    toolbar: 'undo redo | blocks | bold italic underline | bullist numlist | table link | alignleft aligncenter alignright | code'
-  });
-</script>
+
+{{ remark_options|json_script:"remark-options-data" }}
+
+<script src="{% static 'js/coa_edit.js' %}"></script>
+
 {% endblock %}

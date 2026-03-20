@@ -19,6 +19,7 @@
       <a href="{% url 'bookings:master_list' 'test' %}" class="btn btn-outline-dark btn-sm">Test</a>
       <a href="{% url 'bookings:master_list' 'protocol' %}" class="btn btn-outline-dark btn-sm">Protocol</a>
       <a href="{% url 'bookings:master_list' 'uom' %}" class="btn btn-outline-dark btn-sm">UOM</a>
+      <a href="{% url 'bookings:master_list' 'remark' %}" class="btn btn-outline-dark btn-sm">Remark</a>
     </div>
 
     <div class="table-responsive">
@@ -32,20 +33,25 @@
           </tr>
         </thead>
         <tbody>
-          {% for obj in object_list %}
+          {% for row in rows %}
           <tr>
-            <td>{{ obj.name }}</td>
             <td>
-              {% if obj.is_active %}
+              <div class="fw-semibold">{{ row.primary }}</div>
+              {% if row.detail %}
+              <div class="text-muted small">{{ row.detail|truncatechars:120 }}</div>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.object.is_active %}
               <span class="badge text-bg-success">Active</span>
               {% else %}
               <span class="badge text-bg-secondary">Inactive</span>
               {% endif %}
             </td>
-            <td>{{ obj.created_at|date:'Y-m-d H:i' }}</td>
+            <td>{{ row.created_at|date:'Y-m-d H:i'|default:'-' }}</td>
             <td>
-              <a href="{% url 'bookings:master_edit' master_slug obj.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
-              <a href="{% url 'bookings:master_delete' master_slug obj.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+              <a href="{% url 'bookings:master_edit' master_slug row.object.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+              <a href="{% url 'bookings:master_delete' master_slug row.object.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
             </td>
           </tr>
           {% empty %}

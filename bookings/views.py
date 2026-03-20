@@ -12,13 +12,14 @@ from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, DeleteView, ListView, TemplateView, UpdateView
 
-from reports.models import Report
+from reports.models import Report, ReportRemark
 
 from .forms import (
     BookingForm,
     CustomerMasterForm,
     ManufacturerMasterForm,
     ProtocolMasterForm,
+    ReportRemarkMasterForm,
     SampleNameMasterForm,
     SubmitterMasterForm,
     TestMasterForm,
@@ -45,6 +46,14 @@ MASTER_CONFIG = {
     "test": {"model": TestMaster, "form": TestMasterForm, "title": "Test Master"},
     "protocol": {"model": ProtocolMaster, "form": ProtocolMasterForm, "title": "Protocol Master"},
     "uom": {"model": UOMMaster, "form": UOMMasterForm, "title": "UOM Master"},
+    "remark": {
+        "model": ReportRemark,
+        "form": ReportRemarkMasterForm,
+        "title": "Remark Master",
+        "order_by": ("sort_order", "title"),
+        "primary_attr": "title",
+        "detail_attr": "content",
+    },
 }
 INLINE_ALLOWED_MASTERS = {"customer", "submitter", "manufacturer", "sample-name", "test"}
 
@@ -75,6 +84,7 @@ class BookingCreateView(RoleRequiredMixin, PermissionRequiredMixin, CreateView):
         context = super().get_context_data(**kwargs)
         duplicate_id = self.request.GET.get("duplicate")
         context["duplicate_id"] = duplicate_id
+        context["edit_mode"] = False
         context["inline_master_slugs"] = INLINE_ALLOWED_MASTERS
         return context
 
@@ -105,6 +115,7 @@ class BookingCreateView(RoleRequiredMixin, PermissionRequiredMixin, CreateView):
                     "batch_size": source.batch_size,
                     "manufacture_date": source.manufacture_date,
                     "expiry_retest_date": source.expiry_retest_date,
+                    "license_no": source.license_no,
                     "collected_by_name": source.collected_by_name,
                     "sampling_procedure": source.sampling_procedure,
                     "analysis_start_date": source.analysis_start_date,
@@ -130,6 +141,36 @@ class BookingCreateView(RoleRequiredMixin, PermissionRequiredMixin, CreateView):
             messages.success(self.request, "Booking duplicated successfully. You can edit and save.")
         else:
             messages.success(self.request, "Booking created successfully.")
+        messages.info(self.request, f"Booking ID: {self.object.tracking_code}. Copy this ID to search quickly.")
+        return response
+
+
+class BookingUpdateView(RoleRequiredMixin, PermissionRequiredMixin, UpdateView):
+    permission_required = "bookings.change_booking"
+    required_roles = ("Analyst", "Admin", "Manager")
+    model = Booking
+    form_class = BookingForm
+    template_name = "bookings/booking_form.html"
+    success_url = reverse_lazy("bookings:list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["duplicate_id"] = None
+        context["edit_mode"] = True
+        context["inline_master_slugs"] = INLINE_ALLOWED_MASTERS
+        return context
+
+    def form_valid(self, form):
+        try:
+            response = super().form_valid(form)
+        except DatabaseError:
+            messages.error(
+                self.request,
+                "Database schema is not up to date. Please run migrations and try again.",
+            )
+            return redirect("bookings:list")
+        messages.success(self.request, "Booking updated successfully.")
+        messages.info(self.request, f"Booking ID: {self.object.tracking_code}. Copy this ID to search quickly.")
         return response
 
 
@@ -154,6 +195,8 @@ class BookingListView(LoginRequiredMixin, ListView):
                 qs = qs.filter(sample_name__name__icontains=search)
             elif search_by == "batch_no":
                 qs = qs.filter(batch_no__iexact=search)
+            elif search_by == "tracking":
+                qs = qs.filter(tracking_code__iexact=search)
             else:
                 qs = qs.filter(sample_reg_no__icontains=search)
         return qs
@@ -188,15 +231,29 @@ class MasterListView(LoginRequiredMixin, TemplateView):
         conf = MASTER_CONFIG.get(slug)
         if not conf:
             raise Http404("Invalid master type")
-        queryset = conf["model"].objects.order_by("name")
+        order_by = conf.get("order_by", ("name",))
+        queryset = conf["model"].objects.order_by(*order_by)
         paginator = Paginator(queryset, 20)
         page_obj = paginator.get_page(self.request.GET.get("page"))
+        primary_attr = conf.get("primary_attr", "name")
+        detail_attr = conf.get("detail_attr")
+        rows = []
+        for obj in page_obj.object_list:
+            rows.append(
+                {
+                    "object": obj,
+                    "primary": getattr(obj, primary_attr, ""),
+                    "detail": getattr(obj, detail_attr, "") if detail_attr else "",
+                    "created_at": getattr(obj, "created_at", None),
+                }
+            )
         context.update(
             {
                 "master_slug": slug,
                 "title": conf["title"],
                 "page_obj": page_obj,
                 "object_list": page_obj.object_list,
+                "rows": rows,
                 "can_inline": slug in INLINE_ALLOWED_MASTERS,
             }
         )
@@ -216,7 +273,7 @@ class MasterCreateView(RoleRequiredMixin, PermissionRequiredMixin, CreateView):
         self.model = conf["model"]
         self.form_class = conf["form"]
         self.title = conf["title"]
-        self.permission_required = f"bookings.add_{self.model._meta.model_name}"
+        self.permission_required = f"{self.model._meta.app_label}.add_{self.model._meta.model_name}"
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -243,7 +300,7 @@ class MasterUpdateView(RoleRequiredMixin, PermissionRequiredMixin, UpdateView):
         self.model = conf["model"]
         self.form_class = conf["form"]
         self.title = conf["title"]
-        self.permission_required = f"bookings.change_{self.model._meta.model_name}"
+        self.permission_required = f"{self.model._meta.app_label}.change_{self.model._meta.model_name}"
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -269,7 +326,7 @@ class MasterDeleteView(RoleRequiredMixin, PermissionRequiredMixin, DeleteView):
             raise Http404("Invalid master type")
         self.model = conf["model"]
         self.title = conf["title"]
-        self.permission_required = f"bookings.delete_{self.model._meta.model_name}"
+        self.permission_required = f"{self.model._meta.app_label}.delete_{self.model._meta.model_name}"
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):

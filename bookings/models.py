@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.db import IntegrityError, models
 from django.db.models import Max
+from django.db.models.functions import Cast
 from django.utils import timezone
 
 
@@ -63,10 +64,10 @@ class Booking(models.Model):
         REGULATORY = "regulatory", "Regulatory"
         GENERAL = "general", "General"
 
-    booking_date = models.DateField(default=timezone.now)
-    letter_date = models.DateField(null=True, blank=True)
-    sampling_upto = models.DateField(null=True, blank=True)
-    sample_receipt_date = models.DateField(null=True, blank=True)
+    booking_date = models.DateTimeField(default=timezone.now)
+    letter_date = models.DateTimeField(null=True, blank=True)
+    sampling_upto = models.DateTimeField(null=True, blank=True)
+    sample_receipt_date = models.DateTimeField(null=True, blank=True)
     customer = models.ForeignKey(
         CustomerMaster, on_delete=models.PROTECT, related_name="bookings", null=True, blank=True
     )
@@ -86,6 +87,7 @@ class Booking(models.Model):
     )
     uom = models.ForeignKey(UOMMaster, on_delete=models.PROTECT, related_name="bookings", null=True, blank=True)
     booking_type = models.CharField(max_length=20, choices=BookingType.choices, default=BookingType.GENERAL)
+    tracking_code = models.CharField(max_length=16, unique=True, editable=False, blank=True, default="")
     sample_reg_no = models.CharField(max_length=32, unique=True, editable=False, null=True, blank=True)
     sample_qty = models.CharField(max_length=100, blank=True)
     sample_location = models.CharField(max_length=255, blank=True)
@@ -95,10 +97,11 @@ class Booking(models.Model):
     batch_size = models.CharField(max_length=100, blank=True)
     manufacture_date = models.DateField(null=True, blank=True)
     expiry_retest_date = models.DateField(null=True, blank=True)
+    license_no = models.CharField(max_length=255, blank=True)
     collected_by_name = models.CharField(max_length=255, blank=True)
     sampling_procedure = models.CharField(max_length=255, blank=True)
-    analysis_start_date = models.DateField(null=True, blank=True)
-    analysis_end_date = models.DateField(null=True, blank=True)
+    analysis_start_date = models.DateTimeField(null=True, blank=True)
+    analysis_end_date = models.DateTimeField(null=True, blank=True)
     remarks = models.TextField(blank=True)
 
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
@@ -140,7 +143,18 @@ class Booking(models.Model):
         sequence = self._next_sequence(self.booking_date, self.booking_type)
         return f"ARL/{self.booking_date.year}/{self.booking_type_code}/{sequence:04d}"
 
+    @classmethod
+    def generate_tracking_code(cls) -> str:
+        numeric_codes = cls.objects.filter(tracking_code__regex=r"^\d+$").aggregate(
+            max_code=Max(Cast("tracking_code", models.BigIntegerField()))
+        )
+        last_value = numeric_codes.get("max_code") or 999
+        next_value = last_value + 1
+        return str(next_value)
+
     def save(self, *args, **kwargs):
+        if not self.tracking_code:
+            self.tracking_code = self.generate_tracking_code()
         if self.sample_reg_no:
             super().save(*args, **kwargs)
             return
@@ -152,6 +166,7 @@ class Booking(models.Model):
                 return
             except IntegrityError:
                 self.sample_reg_no = None
+                self.tracking_code = self.generate_tracking_code()
                 continue
         raise IntegrityError("Unable to generate unique sample registration number.")
 
@@ -160,6 +175,10 @@ class Booking(models.Model):
         self.approved_by = user
         self.approved_at = timezone.now()
         self.save(update_fields=["status", "approved_by", "approved_at"])
+        # Keep report workflow in sync with approved bookings.
+        from reports.models import Report
+
+        Report.objects.get_or_create(booking=self, defaults={"created_by": user})
 
     def __str__(self) -> str:
-        return self.sample_reg_no or f"Booking-{self.pk}"
+        return self.sample_reg_no or self.tracking_code or f"Booking-{self.pk}"

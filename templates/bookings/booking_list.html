@@ -14,6 +14,7 @@
           <option value="sample" {% if search_by == 'sample' %}selected{% endif %}>Sample Name</option>
           <option value="customer" {% if search_by == 'customer' %}selected{% endif %}>Customer</option>
           <option value="batch_no" {% if search_by == 'batch_no' %}selected{% endif %}>Batch No</option>
+          <option value="tracking" {% if search_by == 'tracking' %}selected{% endif %}>Booking ID</option>
         </select>
       </div>
       <div class="col-md-5">
@@ -32,6 +33,7 @@
         <thead class="table-light">
           <tr>
             <th>Sample Reg No</th>
+            <th>Booking ID</th>
             <th>Booking Date</th>
             <th>Customer</th>
             <th>Sample Name</th>
@@ -43,7 +45,13 @@
         <tbody>
           {% for b in bookings %}
           <tr>
-            <td>{{ b.sample_reg_no }}</td>
+            <td>
+              {{ b.sample_reg_no }}
+              {% if b.batch_no %}
+              <div class="text-muted small">Batch: {{ b.batch_no }}</div>
+              {% endif %}
+            </td>
+            <td><span class="tracking-chip">{{ b.tracking_code }}</span></td>
             <td>{{ b.booking_date|date:"d/m/Y" }}</td>
             <td>{{ b.customer.name }}</td>
             <td>{{ b.sample_name.name }}</td>
@@ -56,6 +64,7 @@
               {% endif %}
             </td>
             <td>
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'bookings:edit' b.pk %}">Edit</a>
               <a class="btn btn-sm btn-outline-secondary" href="{% url 'bookings:create' %}?duplicate={{ b.pk }}">Duplicate</a>
               {% if b.status == 'approved' %}
               <a class="btn btn-sm btn-primary" href="{% url 'reports:approval' b.pk %}">Report</a>

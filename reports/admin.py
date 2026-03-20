@@ -1,10 +1,17 @@
 from django.contrib import admin
 
-from .models import Report
+from .models import Report, ReportRemark
+
+
+@admin.register(ReportRemark)
+class ReportRemarkAdmin(admin.ModelAdmin):
+    list_display = ("title", "sort_order", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("title", "content")
 
 
 @admin.register(Report)
 class ReportAdmin(admin.ModelAdmin):
-    list_display = ("booking", "status", "manager_name", "incharge_name", "analysis_end_date", "created_at")
-    list_filter = ("status",)
-    search_fields = ("booking__sample_reg_no", "manager_name", "incharge_name")
+    list_display = ("booking", "status", "final_outcome", "manager_name", "incharge_name", "analysis_end_date", "created_at")
+    list_filter = ("status", "final_outcome")
+    search_fields = ("booking__sample_reg_no", "manager_name", "incharge_name", "remark_text")

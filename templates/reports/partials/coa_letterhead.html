@@ -1,0 +1,249 @@
+{% load static %}
+{% with is_plain=is_plain_doc %}
+<div id="coa-rendered-pages" class="coa-rendered-pages"></div>
+
+<div id="coa-page-prototype" class="coa-prototype-root" aria-hidden="true">
+  <div class="coa-print-wrapper {% if is_plain %}coa-plain{% else %}coa-letterhead{% endif %}"{% if not is_plain %} style="background-image:url('{% static letterhead_background %}');"{% endif %}>
+    {% if report.final_outcome == 'draft' %}
+      <div class="coa-draft-watermark">DRAFT</div>
+    {% endif %}
+    <div class="coa-body">
+      <div class="coa-meta-bar">
+        <div class="coa-meta-bar__right">
+          <div class="coa-page-info">Page No. <span class="coa-page-number">1</span></div>
+          <div class="coa-cert">Certificate No.: {{ report.certificate_no }}</div>
+        </div>
+      </div>
+
+ <table class="coa-meta-table">
+  <colgroup>
+    <col style="width:23%">
+    <col style="width:16%">
+    <col style="width:11%">
+    <col style="width:15%">
+    <col style="width:22%">
+    <col style="width:26%">
+  </colgroup>
+  <tr>
+    <th>Sample Submitted By</th>
+    <td colspan="5" class="full-value">
+      <div class="meta-primary">{{ report.booking.customer.name }}</div>
+      {% if report.booking.sample_location %}
+      <div class="meta-secondary">{{ report.booking.sample_location|linebreaksbr }}</div>
+      {% endif %}
+    </td>
+  </tr>
+  <tr>
+    <th>Ref. No.</th>
+    <td colspan="3">{{ report.booking.remarks|default:"N.S." }}</td>
+    <th>Letter Date</th>
+    <td>{{ report_letter_date }}</td>
+  </tr>
+  <tr>
+    <th>Sample Name</th>
+    <td colspan="3">{{ report.booking.sample_name.name|default:"-" }}</td>
+    <th>Received Date</th>
+    <td>{{ report_received_date }}</td>
+  </tr>
+  <tr>
+    <th>Manufactured By</th>
+    <td colspan="3">{{ report.booking.manufacturer.name|default:"-" }}</td>
+    <th>Date of Analysis</th>
+    <td>{{ report_analysis_start_date }}</td>
+  </tr>
+  <tr>
+    <th>Supplied By</th>
+    <td colspan="3">{{ report.booking.submitter.name|default:"N.S." }}</td>
+    <th>Date of Completion</th>
+    <td>{{ report_analysis_end_date }}</td>
+  </tr>
+  <tr>
+    <th>Batch No./Code No.</th>
+    <td>{{ report.booking.batch_no|default:"-" }}</td>
+    <th>Batch Size</th>
+    <td>{{ report.booking.batch_size|default:"-" }}</td>
+    <th>Sample Qty.</th>
+    <td>{{ report.booking.sample_qty|default:"-" }}{% if report.booking.uom.name %} {{ report.booking.uom.name }}{% endif %}</td>
+  </tr>
+  <tr>
+    <th>Mfg. Date</th>
+    <td>{{ report_manufacture_date }}</td>
+    <th>Exp. Date</th>
+    <td>{{ report_expiry_date }}</td>
+    <th>Sample Condition</th>
+    <td>{{ report.booking.sample_condition|default:"-" }}</td>
+  </tr>
+  <tr>
+    <th>Protocol/Ref. Standard</th>
+    <td colspan="3">{{ report.booking.protocol.name|default:"-" }}</td>
+    <th>Lic. No</th>
+    <td>{{ report.booking.license_no|default:"-" }}</td>
+  </tr>
+</table>
+      <div class="coa-page-main">
+        <div class="coa-section-title">Result of Analysis</div>
+        <div class="coa-result coa-page-result"></div>
+      </div>
+
+      <div class="coa-signature-line"></div>
+      <div class="coa-footer-row">
+        <div class="coa-footer-signatures">
+          <div class="coa-signatures">
+            <div class="coa-signature">
+              {% if not is_plain %}
+                <div class="coa-signature__stamp">
+                  {% if report.manager_signature and report.manager_signature != 'Digitally Signed' %}
+                    {{ report.manager_signature|safe }}
+                  {% else %}
+                    <img src="{% static 'img/1029S_Mohit Barskar.webp' %}" alt="Manager signature">
+                  {% endif %}
+                </div>
+              {% endif %}
+              <div class="coa-signature__name">
+                {% if report.manager_name and report.manager_name != 'admin' %}
+                  {{ report.manager_name }}
+                {% elif report.manager and report.manager.get_full_name %}
+                  {{ report.manager.get_full_name }}
+                {% else %}
+                  Mohit Barskar
+                {% endif %}
+              </div>
+              <div class="coa-signature__label">Checked By</div>
+            </div>
+            <div class="coa-signature">
+              {% if not is_plain %}
+                <div class="coa-signature__stamp">
+                  {% if report.incharge_signature and report.incharge_signature != 'Digital Sign' %}
+                    {{ report.incharge_signature|safe }}
+                  {% else %}
+                    <img src="{% static 'img/1041S_Alok Kumar Singh.png' %}" alt="Incharge signature">
+                  {% endif %}
+                </div>
+              {% endif %}
+              <div class="coa-signature__name">
+                {% if report.incharge_name and report.incharge_name != 'Incharge' %}
+                  {{ report.incharge_name }}
+                {% else %}
+                  Alok Kumar Singh
+                {% endif %}
+              </div>
+              <div class="coa-signature__label">Person In-charge of Testing</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="coa-footer-barcode">
+        <div class="coa-barcode coa-barcode--footer-right">
+          {% if qr_image_data %}
+            <img src="{{ qr_image_data }}" alt="Scan report QR code" width="90" height="90">
+          {% else %}
+            <div class="coa-qr-code" data-qr-payload="{{ qr_payload }}"></div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="coa-result-source" class="coa-pagination-source" aria-hidden="true">
+  {{ report.ceo_content|safe }}
+</div>
+
+<div id="coa-tail-source" class="coa-pagination-source" aria-hidden="true">
+  <div class="coa-end-report">*** END OF REPORT ***</div>
+  {% if report.remark_text %}
+  <div class="coa-remark">Remark: {{ report.remark_text|linebreaksbr }}</div>
+  {% endif %}
+</div>
+
+<div id="coa-measure-root" class="coa-measure-root" aria-hidden="true"></div>
+<noscript>
+  <div class="coa-print-wrapper {% if is_plain %}coa-plain{% else %}coa-letterhead{% endif %}"{% if not is_plain %} style="background-image:url('{% static letterhead_background %}');"{% endif %}>
+    {% if report.final_outcome == 'draft' %}
+      <div class="coa-draft-watermark">DRAFT</div>
+    {% endif %}
+    <div class="coa-body">
+      <div class="coa-meta-bar">
+        <div class="coa-meta-bar__right">
+          <div class="coa-page-info">Page No. <span class="coa-page-number">1</span></div>
+          <div class="coa-cert">Certificate No.: {{ report.certificate_no }}</div>
+        </div>
+      </div>
+      <table class="coa-meta-table">
+        <tr>
+          <th>Sample Submitted By</th>
+          <td colspan="3" class="full-value">
+            <div class="meta-primary">{{ report.booking.customer.name }}</div>
+            {% if report.booking.sample_location %}
+            <div class="meta-secondary">{{ report.booking.sample_location|linebreaksbr }}</div>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th>Ref. No.</th>
+          <td>{{ report.booking.remarks|default:"N.S." }}</td>
+          <th>Letter Date</th>
+          <td>{{ report_letter_date }}</td>
+        </tr>
+        <tr>
+          <th>Sample Name</th>
+          <td>{{ report.booking.sample_name.name|default:"-" }}</td>
+          <th>Received Date</th>
+          <td>{{ report_received_date }}</td>
+        </tr>
+        <tr>
+          <th>Manufactured By</th>
+          <td>{{ report.booking.manufacturer.name|default:"-" }}</td>
+          <th>Date of Analysis</th>
+          <td>{{ report_analysis_start_date }}</td>
+        </tr>
+        <tr>
+          <th>Supplied By</th>
+          <td>{{ report.booking.submitter.name|default:"N.S." }}</td>
+          <th>Date of Completion</th>
+          <td>{{ report_analysis_end_date }}</td>
+        </tr>
+        <tr>
+          <th>Batch No./Code No.</th>
+          <td>{{ report.booking.batch_no|default:"-" }}</td>
+          <th>Batch Size</th>
+          <td>{{ report.booking.batch_size|default:"-" }}</td>
+        </tr>
+        <tr>
+          <th>Sample Qty.</th>
+          <td>
+            {{ report.booking.sample_qty|default:"-" }}
+            {% if report.booking.uom.name %}{{ report.booking.uom.name }}{% endif %}
+          </td>
+          <th>Sample Condition</th>
+          <td>{{ report.booking.sample_condition|default:"-" }}</td>
+        </tr>
+        <tr>
+          <th>Mfg. Date</th>
+          <td>{{ report_manufacture_date }}</td>
+          <th>Exp. Date</th>
+          <td>{{ report_expiry_date }}</td>
+        </tr>
+        <tr>
+          <th>Protocol/Ref. Standard</th>
+          <td>{{ report.booking.protocol.name|default:"-" }}</td>
+          <th>Lic. No.</th>
+          <td>{{ report.booking.license_no|default:"-" }}</td>
+        </tr>
+        <tr>
+          <th>Booking ID</th>
+          <td>{{ report.booking.tracking_code|default:"-" }}</td>
+          <th>Sample Reg No.</th>
+          <td>{{ report.booking.sample_reg_no|default:"-" }}</td>
+        </tr>
+      </table>
+      <div class="coa-section-title">Result of Analysis</div>
+      <div class="coa-result">{{ report.ceo_content|safe }}</div>
+      <div class="coa-end-report">*** END OF REPORT ***</div>
+      {% if report.remark_text %}
+      <div class="coa-remark">Remark: {{ report.remark_text|linebreaksbr }}</div>
+      {% endif %}
+    </div>
+  </div>
+</noscript>
+{% endwith %}

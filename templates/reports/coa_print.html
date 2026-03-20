@@ -1,53 +1,106 @@
-{% extends 'base.html' %}
-{% block title %}COA Print | LIMS{% endblock %}
-{% block extra_head %}
+{% extends 'reports/coa_doc.html' %}
+{% load static %}
+
+{% block toolbar %}
+{% if show_saved_popup %}
+<div class="coa-save-popup no-print" role="status">
+  <strong>Result updated successfully</strong>
+  <span>Booking ID: {{ report.booking.tracking_code }}</span>
+</div>
+{% endif %}
+<div class="no-print" style="text-align:center;margin-bottom:16px;display:flex;gap:12px;justify-content:center;">
+  <a class="btn btn-warning" type="button" href="{% url 'reports:coa_edit' report.pk %}">Edit Report</a>
+  <button class="btn btn-primary" type="button" onclick="window.print()">Print</button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+{% if preview_mode %}
+<script>
+(function(){
+  const savePopup = document.querySelector('.coa-save-popup');
+  const downloadBtn=document.getElementById('coa-download-btn');
+  const pdfUrl='{{ pdf_post_url }}';
+  const csrfToken='{{ csrf_token }}';
+  const plainParam='{{ plain_param }}';
+  const docParam='{{ doc_param }}';
+
+  async function downloadPdf(){
+    const qrCanvas=document.querySelector('.coa-qr-code canvas');
+    const qrData=qrCanvas? qrCanvas.toDataURL('image/png') : '';
+    const form=new FormData();
+    if(qrData){ form.append('qr_data',qrData); }
+    if(plainParam){ form.append('plain',plainParam); }
+    if(docParam){ form.append('doc',docParam); }
+    const response=await fetch(pdfUrl,{method:'POST',headers:{'X-CSRFToken':csrfToken},body:form});
+    if(!response.ok){ alert('Unable to generate PDF.'); return; }
+    const blob=await response.blob();
+    const url=URL.createObjectURL(blob);
+    const anchor=document.createElement('a');
+    anchor.href=url;
+    anchor.download='{{ report.booking.sample_reg_no|default:"COA" }}.pdf';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+
+  if(downloadBtn){
+    downloadBtn.addEventListener('click',()=>{
+      downloadPdf().catch(()=>alert('Unable to download PDF.'));
+    });
+  }
+
+  if(savePopup){
+    setTimeout(() => {
+      savePopup.classList.add('is-hidden');
+    }, 3500);
+  }
+
+  if('{{ auto_print|yesno:"1,0" }}' === '1'){
+    document.addEventListener('coa:ready', () => {
+      setTimeout(() => window.print(), 400);
+    }, { once: true });
+  }
+})();
+</script>
 <style>
-  @page { size: A4; margin: 15mm; }
-  .print-page { background: #fff; padding: 20px; border: 1px solid #ccc; }
-  .head-row { display: flex; justify-content: space-between; }
-  .meta-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-  .meta-table td, .meta-table th { border: 1px solid #333; padding: 8px; }
-  @media print {
-    nav, .alert, .btn { display: none !important; }
-    .container { width: 100%; max-width: 100%; }
-    .print-page { border: none; }
+  .coa-save-popup {
+    position: sticky;
+    top: 12px;
+    z-index: 30;
+    margin: 0 auto 16px;
+    width: min(520px, calc(100vw - 32px));
+    padding: 12px 16px;
+    border: 1px solid #86efac;
+    background: #f0fdf4;
+    color: #166534;
+    border-radius: 10px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+
+  .coa-save-popup span {
+    font-weight: 700;
+  }
+
+  .coa-save-popup.is-hidden {
+    opacity: 0;
+    transform: translateY(-8px);
+    pointer-events: none;
+  }
+
+  @media (max-width: 640px) {
+    .coa-save-popup {
+      flex-direction: column;
+      align-items: flex-start;
+    }
   }
 </style>
-{% endblock %}
-{% block content %}
-<div class="mb-3">
-  <button class="btn btn-primary" onclick="window.print()">Print</button>
-</div>
-<div class="print-page">
-  <div class="head-row">
-    <h4>Certificate of Analysis</h4>
-    <div><strong>Certificate No.:</strong> {{ report.certificate_no }}</div>
-  </div>
-
-  <table class="meta-table">
-    <tr><th>Booking Date</th><td>{{ report.booking.booking_date|date:"d/m/Y" }}</td><th>Sample Reg No</th><td>{{ report.booking.sample_reg_no }}</td></tr>
-    <tr><th>Customer</th><td>{{ report.booking.customer.name }}</td><th>Sample Name</th><td>{{ report.booking.sample_name.name }}</td></tr>
-    <tr><th>Protocol</th><td>{{ report.booking.protocol.name }}</td><th>UOM</th><td>{{ report.booking.uom.name }}</td></tr>
-    <tr><th>Test Performed</th><td colspan="3">{{ report.test_names }}</td></tr>
-    <tr><th>Analysis End Date</th><td>{{ report.analysis_end_date|date:"d/m/Y" }}</td><th>Booking Type</th><td>{{ report.booking.get_booking_type_display }}</td></tr>
-  </table>
-
-  <div class="mt-4">
-    <h5>Result / Observation</h5>
-    <div>{{ report.ceo_content|safe }}</div>
-  </div>
-
-  <div class="row mt-5">
-    <div class="col-6">
-      <strong>Manager</strong><br>
-      {{ report.manager_name }}<br>
-      {{ report.manager_signature }}
-    </div>
-    <div class="col-6 text-end">
-      <strong>Incharge</strong><br>
-      {{ report.incharge_name|default:'Incharge' }}<br>
-      {{ report.incharge_signature|default:'Digital Sign' }}
-    </div>
-  </div>
-</div>
+{% endif %}
 {% endblock %}

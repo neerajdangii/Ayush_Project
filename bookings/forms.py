@@ -1,5 +1,7 @@
 from django import forms
 
+from reports.models import ReportRemark
+
 from .models import (
     Booking,
     CustomerMaster,
@@ -12,19 +14,23 @@ from .models import (
 )
 
 DATE_FORMAT_DMY = "%d/%m/%Y"
+DATETIME_FORMAT_DMY = "%d/%m/%Y %I:%M %p"
 DATE_PLACEHOLDER = "DD/MM/YYYY"
+DATETIME_PLACEHOLDER = "DD/MM/YYYY HH:MM AM"
 
 
 class BookingForm(forms.ModelForm):
-    DATE_INPUT_FIELDS = [
+    DATETIME_INPUT_FIELDS = [
         "booking_date",
         "letter_date",
         "sampling_upto",
         "sample_receipt_date",
+        "analysis_start_date",
+        "analysis_end_date",
+    ]
+    DATE_INPUT_FIELDS = [
         "manufacture_date",
         "expiry_retest_date",
-            "analysis_start_date",
-            "analysis_end_date",
     ]
 
     class Meta:
@@ -51,6 +57,7 @@ class BookingForm(forms.ModelForm):
             "batch_size",
             "manufacture_date",
             "expiry_retest_date",
+            "license_no",
             "collected_by_name",
             "sampling_procedure",
             "analysis_start_date",
@@ -58,21 +65,45 @@ class BookingForm(forms.ModelForm):
             "remarks",
         ]
         widgets = {
-            "booking_date": forms.DateInput(
-                format=DATE_FORMAT_DMY,
-                attrs={"type": "text", "class": "form-control", "placeholder": DATE_PLACEHOLDER},
+            "booking_date": forms.DateTimeInput(
+                format=DATETIME_FORMAT_DMY,
+                attrs={
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATETIME_PLACEHOLDER,
+                    "autocomplete": "off",
+                    "data-picker-kind": "datetime",
+                },
             ),
-            "letter_date": forms.DateInput(
-                format=DATE_FORMAT_DMY,
-                attrs={"type": "text", "class": "form-control", "placeholder": DATE_PLACEHOLDER},
+            "letter_date": forms.DateTimeInput(
+                format=DATETIME_FORMAT_DMY,
+                attrs={
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATETIME_PLACEHOLDER,
+                    "autocomplete": "off",
+                    "data-picker-kind": "datetime",
+                },
             ),
-            "sampling_upto": forms.DateInput(
-                format=DATE_FORMAT_DMY,
-                attrs={"type": "text", "class": "form-control", "placeholder": DATE_PLACEHOLDER},
+            "sampling_upto": forms.DateTimeInput(
+                format=DATETIME_FORMAT_DMY,
+                attrs={
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATETIME_PLACEHOLDER,
+                    "autocomplete": "off",
+                    "data-picker-kind": "datetime",
+                },
             ),
-            "sample_receipt_date": forms.DateInput(
-                format=DATE_FORMAT_DMY,
-                attrs={"type": "text", "class": "form-control", "placeholder": DATE_PLACEHOLDER},
+            "sample_receipt_date": forms.DateTimeInput(
+                format=DATETIME_FORMAT_DMY,
+                attrs={
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATETIME_PLACEHOLDER,
+                    "autocomplete": "off",
+                    "data-picker-kind": "datetime",
+                },
             ),
             "customer": forms.Select(attrs={"class": "form-select"}),
             "submitter": forms.Select(attrs={"class": "form-select"}),
@@ -91,21 +122,46 @@ class BookingForm(forms.ModelForm):
             "batch_size": forms.TextInput(attrs={"class": "form-control"}),
             "manufacture_date": forms.DateInput(
                 format=DATE_FORMAT_DMY,
-                attrs={"type": "text", "class": "form-control", "placeholder": DATE_PLACEHOLDER},
+                attrs={
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATETIME_PLACEHOLDER,
+                    "autocomplete": "off",
+                    "data-picker-kind": "datetime",
+                },
             ),
             "expiry_retest_date": forms.DateInput(
                 format=DATE_FORMAT_DMY,
-                attrs={"type": "text", "class": "form-control", "placeholder": DATE_PLACEHOLDER},
+                attrs={
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATETIME_PLACEHOLDER,
+                    "autocomplete": "off",
+                    "data-picker-kind": "datetime",
+                },
             ),
+            "license_no": forms.TextInput(attrs={"class": "form-control"}),
             "collected_by_name": forms.TextInput(attrs={"class": "form-control"}),
             "sampling_procedure": forms.TextInput(attrs={"class": "form-control"}),
-            "analysis_start_date": forms.DateInput(
-                format=DATE_FORMAT_DMY,
-                attrs={"type": "text", "class": "form-control", "placeholder": DATE_PLACEHOLDER},
+            "analysis_start_date": forms.DateTimeInput(
+                format=DATETIME_FORMAT_DMY,
+                attrs={
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATETIME_PLACEHOLDER,
+                    "autocomplete": "off",
+                    "data-picker-kind": "datetime",
+                },
             ),
-            "analysis_end_date": forms.DateInput(
-                format=DATE_FORMAT_DMY,
-                attrs={"type": "text", "class": "form-control", "placeholder": DATE_PLACEHOLDER},
+            "analysis_end_date": forms.DateTimeInput(
+                format=DATETIME_FORMAT_DMY,
+                attrs={
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATETIME_PLACEHOLDER,
+                    "autocomplete": "off",
+                    "data-picker-kind": "datetime",
+                },
             ),
             "remarks": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
         }
@@ -126,8 +182,10 @@ class BookingForm(forms.ModelForm):
         ]
         for field_name in required_fields:
             self.fields[field_name].required = True
+        for field_name in self.DATETIME_INPUT_FIELDS:
+            self.fields[field_name].input_formats = [DATETIME_FORMAT_DMY]
         for field_name in self.DATE_INPUT_FIELDS:
-            self.fields[field_name].input_formats = [DATE_FORMAT_DMY]
+            self.fields[field_name].input_formats = [DATE_FORMAT_DMY, DATETIME_FORMAT_DMY]
 
         self.fields["customer"].queryset = CustomerMaster.objects.filter(is_active=True)
         self.fields["submitter"].queryset = SubmitterMaster.objects.filter(is_active=True)
@@ -180,3 +238,15 @@ class ProtocolMasterForm(MasterForm):
 class UOMMasterForm(MasterForm):
     class Meta(MasterForm.Meta):
         model = UOMMaster
+
+
+class ReportRemarkMasterForm(forms.ModelForm):
+    class Meta:
+        model = ReportRemark
+        fields = ["title", "content", "sort_order", "is_active"]
+        widgets = {
+            "title": forms.TextInput(attrs={"class": "form-control"}),
+            "content": forms.Textarea(attrs={"class": "form-control", "rows": 5}),
+            "sort_order": forms.NumberInput(attrs={"class": "form-control"}),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }

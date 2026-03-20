@@ -1,32 +1,44 @@
-<!doctype html>
+{% load static %}
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>COA Document</title>
-  <style>body{font-family:Arial,sans-serif;font-size:14px;padding:20px;} table{border-collapse:collapse;width:100%;margin-bottom:15px;} td,th{border:1px solid #333;padding:6px;}</style>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{ document_title }} | {{ report.booking.sample_reg_no }}</title>
+  <link rel="stylesheet" href="{% static 'css/coa.css' %}">
+  {% block extra_head %}{% endblock %}
 </head>
-<body>
-  <h3>Certificate of Analysis</h3>
-  <p><strong>Certificate No:</strong> {{ report.certificate_no }}</p>
-  <table>
-    <tr><th>Booking Date</th><td>{{ report.booking.booking_date|date:"d/m/Y" }}</td><th>Sample Reg No</th><td>{{ report.booking.sample_reg_no }}</td></tr>
-    <tr><th>Customer</th><td>{{ report.booking.customer.name }}</td><th>Sample Name</th><td>{{ report.booking.sample_name.name }}</td></tr>
-    <tr><th>Test Performed</th><td colspan="3">{{ report.test_names }}</td></tr>
-  </table>
-  <div>{{ report.ceo_content|safe }}</div>
-  <table style="margin-top:40px;border:0;">
-    <tr>
-      <td style="border:0; width:50%; vertical-align:top;">
-        <strong>Manager</strong><br>
-        {{ report.manager_name }}<br>
-        {{ report.manager_signature }}
-      </td>
-      <td style="border:0; width:50%; text-align:right; vertical-align:top;">
-        <strong>Incharge</strong><br>
-        {{ report.incharge_name|default:'Incharge' }}<br>
-        {{ report.incharge_signature|default:'Digital Sign' }}
-      </td>
-    </tr>
-  </table>
+<body class="coa-standalone">
+  {% block toolbar %}{% endblock %}
+  <div class="coa-print-page">
+    {% include 'reports/partials/coa_letterhead.html' %}
+  </div>
+  {% block extra_js %}
+  {% if not qr_image_data %}
+  <script src="{% static 'js/qrcode.min.js' %}"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const qrTargets = document.querySelectorAll('#coa-qr-code, .coa-qr-code');
+      if (!qrTargets.length || !window.QRCode) {
+        return;
+      }
+
+      qrTargets.forEach((target) => {
+        const payload = target.dataset.qrPayload || '{{ qr_payload|escapejs }}';
+        if (!payload) {
+          return;
+        }
+        target.innerHTML = '';
+        new QRCode(target, {
+          text: payload,
+          width: 90,
+          height: 90
+        });
+      });
+    });
+  </script>
+  {% endif %}
+  <script src="{% static 'js/coa_paginate.js' %}"></script>
+  {% endblock %}
 </body>
 </html>
