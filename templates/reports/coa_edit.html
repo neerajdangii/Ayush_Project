@@ -9,6 +9,20 @@
 <script src="{% static 'js/tinymce/tinymce.min.js' %}"></script>
 {% endif %}
 <link rel="stylesheet" href="{% static 'css/coa_edit.css' %}">
+<style>
+  main.app-shell {
+    max-width: none;
+    width: 98vw;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .coa-save-popup,
+  .coa-edit-topbar,
+  .coa-editor-shell {
+    max-width: none;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -67,6 +81,19 @@
 
   <form method="post">
     {% csrf_token %}
+    <div class="coa-meta-card mb-3">
+      <div class="coa-meta-row">
+        <div class="coa-meta-field">
+          <label for="id_report_template">Report Template</label>
+          {{ form.report_template }}
+          <small>Pick a saved result template for this sample and load it into the editor.</small>
+        </div>
+        <div class="coa-meta-field d-flex align-items-end gap-2">
+          <button class="btn btn-outline-primary" type="button" id="apply-report-template">Load Template</button>
+          <a class="btn btn-outline-secondary" href="{% url 'reports:template_list' %}" target="_blank">Manage Templates</a>
+        </div>
+      </div>
+    </div>
     <div class="coa-result">
       {{ form.ceo_content }}
     </div>
@@ -112,7 +139,9 @@
 {% block extra_js %}
 
 {{ remark_options|json_script:"remark-options-data" }}
+{{ template_options|json_script:"report-template-options-data" }}
+<script id="report-template-content-url" type="application/json">"{% url 'reports:template_content' 0 %}"</script>
 
-<script src="{% static 'js/coa_edit.js' %}"></script>
+<script src="{% static 'js/coa_edit.js' %}?v=20260407-1"></script>
 
 {% endblock %}

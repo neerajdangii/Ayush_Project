@@ -83,14 +83,32 @@
         table_responsive_width: true,
         license_key: 'gpl',
         setup: (editor) => {
+          const syncEditorContent = () => {
+            editor.save();
+          };
+
+          editor.on('change input undo redo setcontent', syncEditorContent);
+
           editor.ui.registry.addMenuButton('addTest', {
             text: 'Add Test',
             fetch: (callback) => {
               callback([
                 {
                   type: 'menuitem',
-                  text: 'Insert Result Template',
-                  onAction: () => editor.insertContent(defaultResultTable)
+                  text: 'Load Result Template',
+                  onAction: () => {
+                    const existingContent = (editor.getContent({ format: 'text' }) || '').trim();
+                    const shouldReplace = !existingContent || window.confirm(
+                      'Load the default result template? This will replace the current editor content.'
+                    );
+
+                    if (!shouldReplace) {
+                      return;
+                    }
+
+                    editor.setContent(defaultResultTable);
+                    editor.focus();
+                  }
                 },
                 {
                   type: 'menuitem',
@@ -125,6 +143,15 @@
       });
     }
 
+    const coaForm = document.querySelector('.coa-editor-shell form');
+    if (coaForm) {
+      coaForm.addEventListener('submit', () => {
+        if (window.tinymce) {
+          window.tinymce.triggerSave();
+        }
+      });
+    }
+
     const summarySection = document.getElementById('coa-summary');
     const summaryToggle = document.getElementById('coa-summary-toggle');
     if (summarySection) {
@@ -154,6 +181,68 @@
         });
       } catch (err) {
         console.error('Unable to parse remark list', err);
+      }
+    }
+
+    const reportTemplateScript = document.getElementById('report-template-options-data');
+    const reportTemplateSelect = document.getElementById('id_report_template');
+    const applyTemplateButton = document.getElementById('apply-report-template');
+    const templateContentUrlNode = document.getElementById('report-template-content-url');
+    if (reportTemplateScript && reportTemplateSelect && applyTemplateButton && templateContentUrlNode) {
+      try {
+        const reportTemplates = JSON.parse(reportTemplateScript.textContent);
+        const templateContentUrlPattern = JSON.parse(templateContentUrlNode.textContent || '""');
+        applyTemplateButton.addEventListener('click', () => {
+          const selected = reportTemplates.find((item) => String(item.id) === reportTemplateSelect.value);
+          if (!selected) {
+            alert('Please select a template first.');
+            return;
+          }
+
+          const shouldReplace = window.confirm('Load this template into the result section? This will replace the current editor content.');
+          if (!shouldReplace) {
+            return;
+          }
+
+          applyTemplateButton.disabled = true;
+          const requestUrl = templateContentUrlPattern.replace(/0\/$/, `${selected.id}/`);
+
+          fetch(requestUrl, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error('Template request failed');
+              }
+              return response.json();
+            })
+            .then((payload) => {
+              const content = payload.content || '';
+              if (window.tinymce) {
+                const editor = window.tinymce.get('editor');
+                if (editor) {
+                  editor.setContent(content);
+                  editor.focus();
+                  return;
+                }
+              }
+
+              const textarea = document.getElementById('editor');
+              if (textarea) {
+                textarea.value = content;
+                textarea.dispatchEvent(new Event('input'));
+              }
+            })
+            .catch((err) => {
+              console.error('Unable to load selected report template', err);
+              alert('Unable to load the selected template.');
+            })
+            .finally(() => {
+              applyTemplateButton.disabled = false;
+            });
+        });
+      } catch (err) {
+        console.error('Unable to parse report template list', err);
       }
     }
 

@@ -1,21 +1,31 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, time
+import re
 
 from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
-from django.contrib.auth.models import User
 from django.http import Http404
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
-from django.views.generic import DetailView, ListView, RedirectView, TemplateView, UpdateView
+from django.utils.safestring import mark_safe
+from django.http import HttpResponse
+from django.template.defaultfilters import linebreaksbr
+from django.template.loader import render_to_string
+from django.utils.html import escape
+from weasyprint import HTML
+from django.views.generic import CreateView, DeleteView, DetailView, ListView, TemplateView, UpdateView
+from django.utils.decorators import method_decorator
 
 from bookings.models import Booking
 from bookings.permissions import RoleRequiredMixin, has_role
 
-from .forms import COAEditForm, ReportApprovalForm
-from .models import Report
+from .forms import COAEditForm, ReportApprovalForm, ReportTemplateForm
+from .models import Report, ReportRemark, ReportTemplate
+from .render_utils import normalize_report_table_html
 
 
 def _format_report_date(value, include_time=False, month_year_only=False):
@@ -39,13 +49,41 @@ def _format_report_date(value, include_time=False, month_year_only=False):
 def _build_report_date_context(report):
     booking = report.booking
     return {
-        "report_letter_date": _format_report_date(booking.letter_date, include_time=True),
-        "report_received_date": _format_report_date(booking.sample_receipt_date, include_time=True),
-        "report_analysis_start_date": _format_report_date(booking.analysis_start_date, include_time=True),
-        "report_analysis_end_date": _format_report_date(report.analysis_end_date, include_time=True),
+        "report_letter_date": _format_report_date(booking.letter_date, include_time=False),
+        "report_received_date": _format_report_date(booking.sample_receipt_date, include_time=False),
+        "report_analysis_start_date": _format_report_date(booking.analysis_start_date, include_time=False),
+        "report_analysis_end_date": _format_report_date(report.analysis_end_date, include_time=False),
         "report_manufacture_date": _format_report_date(booking.manufacture_date, month_year_only=True),
         "report_expiry_date": _format_report_date(booking.expiry_retest_date, month_year_only=True),
     }
+
+
+def _get_report_render_context(report, request, *, preview_mode, auto_print, is_plain_doc, is_test_report):
+    tail_html = '<div class="coa-end-report">*** END OF REPORT ***</div>'
+    if report.remark_text:
+        tail_html += f'<div class="coa-remark">Remark: {linebreaksbr(escape(report.remark_text))}</div>'
+
+    context = {
+        "report": report,
+        "preview_mode": preview_mode,
+        "auto_print": auto_print,
+        "is_plain_doc": is_plain_doc,
+        "is_test_report": is_test_report,
+        "document_title": "Test Report" if is_test_report else "Certificate of Analysis",
+        "tail_html": mark_safe(tail_html),
+    }
+
+    base = reverse("reports:coa_print", kwargs={"pk": report.pk})
+    if is_test_report:
+        base += "?doc=test"
+    if is_plain_doc:
+        base += "&plain=1" if "?" in base else "?plain=1"
+
+    context["coa_public_url"] = request.build_absolute_uri(base)
+    context["qr_payload"] = context["coa_public_url"]
+    context["report_ceo_content"] = mark_safe(normalize_report_table_html(report.ceo_content or ""))
+    context.update(_build_report_date_context(report))
+    return context
 
 
 class ReportListView(PermissionRequiredMixin, RoleRequiredMixin, ListView):
@@ -120,18 +158,22 @@ class ReportCreateOrUpdateView(PermissionRequiredMixin, RoleRequiredMixin, Updat
         analysis_start_date = form.cleaned_data.get("analysis_start_date")
         analysis_end_date = form.cleaned_data.get("analysis_end_date")
 
-        incharge_user = User.objects.filter(groups__name="Incharge", is_active=True).order_by("id").first()
-        if not incharge_user:
-            messages.error(self.request, "No active Incharge user found. Please create one in group Incharge.")
-            return self.form_invalid(form)
+        def _to_day_start(value):
+            if not value:
+                return None
+            dt = datetime.combine(value, time.min)
+            return timezone.make_aware(dt, timezone.get_current_timezone()) if timezone.is_naive(dt) else dt
+
+        analysis_start_date = _to_day_start(analysis_start_date)
+        analysis_end_date = _to_day_start(analysis_end_date)
 
         report.booking.analysis_start_date = analysis_start_date
         report.booking.analysis_end_date = analysis_end_date
         report.booking.save(update_fields=["analysis_start_date", "analysis_end_date"])
         report.analysis_end_date = analysis_end_date
         report.save(update_fields=["analysis_end_date", "updated_at"])
-        report.approve_by_manager(self.request.user, incharge_user)
-        messages.success(self.request, "Report approved by manager and auto-approved by incharge.")
+        report.approve_by_manager(self.request.user)
+        messages.success(self.request, "Report approved by manager.")
         return redirect("reports:coa_edit", pk=report.pk)
 
 
@@ -144,13 +186,30 @@ class COAEditView(PermissionRequiredMixin, RoleRequiredMixin, UpdateView):
 
     def dispatch(self, request, *args, **kwargs):
         self.object = self.get_object()
-        if self.object.status != Report.Status.INCHARGE_APPROVED:
-            messages.error(request, "COA can be edited only after manager approval and incharge auto-approval.")
+        allowed_statuses = {
+            Report.Status.MANAGER_APPROVED,
+            Report.Status.INCHARGE_APPROVED,
+        }
+        if self.object.status not in allowed_statuses:
+            messages.error(request, "COA can be edited only after report approval.")
             return redirect("reports:approval", booking_pk=self.object.booking_id)
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        templates = ReportTemplate.objects.filter(is_active=True).select_related("sample_name", "protocol")
+        context["remark_options"] = list(
+            ReportRemark.objects.filter(is_active=True).values("id", "title", "content")
+        )
+        context["template_options"] = [
+            {
+                "id": template.pk,
+                "name": template.name,
+                "sample_name": template.sample_name.name if template.sample_name else "",
+                "protocol": template.protocol.name if template.protocol else "",
+            }
+            for template in templates
+        ]
         return context
 
     def get_success_url(self):
@@ -167,33 +226,16 @@ class COAPrintView(PermissionRequiredMixin, RoleRequiredMixin, DetailView):
     context_object_name = "report"
 
     def get_context_data(self, **kwargs):
-        """Populate flags that the template uses for rendering.
-
-        Query parameters are used so that links in the UI can toggle
-        between plain/letterhead versions and between COA/test report.
-        """
-        context = super().get_context_data(**kwargs)
         q = self.request.GET
-        context["preview_mode"] = True
-        context["auto_print"] = q.get("autoprint") == "1"
-        context["is_plain_doc"] = q.get("plain") == "1"
-        # letterhead querystring is treated as truthy when equal to '1'
+        context = _get_report_render_context(
+            self.object,
+            self.request,
+            preview_mode=True,
+            auto_print=q.get("autoprint") == "1",
+            is_plain_doc=q.get("plain") == "1",
+            is_test_report=q.get("doc") == "test",
+        )
         context["is_letterhead"] = q.get("letterhead") == "1"
-        # the special `doc=test` flag switches to a test report layout
-        context["is_test_report"] = q.get("doc") == "test"
-        # the title shown at the top of the document
-        context["document_title"] = "Test Report" if context["is_test_report"] else "Certificate of Analysis"
-        context["letterhead_background"] = "img/test.jpeg" if context["is_test_report"] else "img/coa.jpeg"
-        # build the url used by the QR code generator (mirrors the currently
-        # requested view so it works for either COA or test report)
-        base = reverse("reports:coa_print", kwargs={"pk": self.object.pk})
-        if context["is_test_report"]:
-            base += "?doc=test"
-        if context["is_plain_doc"]:
-            base += "&plain=1" if "?" in base else "?plain=1"
-        context["coa_public_url"] = self.request.build_absolute_uri(base)
-        context["qr_payload"] = context["coa_public_url"]
-        context.update(_build_report_date_context(self.object))
         return context
 
 
@@ -203,30 +245,192 @@ class COAPlainDocumentView(PermissionRequiredMixin, RoleRequiredMixin, TemplateV
     template_name = "reports/coa_doc.html"
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
         report = get_object_or_404(Report, pk=self.kwargs["pk"])
-        context["report"] = report
-        context["preview_mode"] = False
-        context["auto_print"] = False
-        context["is_plain_doc"] = self.request.GET.get("plain") == "1"
-        context["is_test_report"] = self.request.GET.get("doc") == "test"
-        context["document_title"] = "Test Report" if context["is_test_report"] else "Certificate of Analysis"
-        context["letterhead_background"] = "img/test.jpeg" if context["is_test_report"] else "img/coa.jpeg"
-        base = reverse("reports:coa_print", kwargs={"pk": report.pk})
-        if context["is_test_report"]:
-            base += "?doc=test"
-        if context["is_plain_doc"]:
-            base += "&plain=1" if "?" in base else "?plain=1"
-        context["coa_public_url"] = self.request.build_absolute_uri(base)
-        context["qr_payload"] = context["coa_public_url"]
-        context.update(_build_report_date_context(report))
+        return _get_report_render_context(
+            report,
+            self.request,
+            preview_mode=False,
+            auto_print=False,
+            is_plain_doc=self.request.GET.get("plain") == "1",
+            is_test_report=self.request.GET.get("doc") == "test",
+        )
+
+
+class COAPDFView(PermissionRequiredMixin, RoleRequiredMixin, DetailView):
+    permission_required = "reports.view_report"
+    required_roles = ("Manager", "Incharge", "Analyst")
+    model = Report
+    template_name = None
+
+    def get(self, request, *args, **kwargs):
+        report = self.get_object()
+
+        # Render HTML context
+        context = self.get_context_data()
+        html_string = render_to_string('reports/coa_doc.html', context, request=request)
+
+        # Generate PDF
+        html = HTML(string=html_string)
+        pdf_bytes = html.write_pdf()
+
+        # Return PDF response
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="COA_{report.booking.sample_reg_no}.pdf"'
+        return response
+
+    def get_context_data(self, **kwargs):
+        report = self.object
+        context = _get_report_render_context(
+            report,
+            self.request,
+            preview_mode=False,
+            auto_print=False,
+            is_plain_doc=self.request.GET.get("plain") == "1",
+            is_test_report=self.request.GET.get("doc") == "test",
+        )
         return context
 
 
-class COAPDFView(PermissionRequiredMixin, RoleRequiredMixin, RedirectView):
+class ReportTemplateListView(PermissionRequiredMixin, RoleRequiredMixin, ListView):
+    permission_required = "reports.view_reporttemplate"
+    required_roles = ("Admin", "Manager", "Analyst")
+    model = ReportTemplate
+    template_name = "reports/report_template_list.html"
+    context_object_name = "templates"
+
+    def get_queryset(self):
+        return ReportTemplate.objects.select_related("sample_name", "protocol").order_by("name")
+
+
+class ReportTemplateCreateView(PermissionRequiredMixin, RoleRequiredMixin, CreateView):
+    permission_required = "reports.add_reporttemplate"
+    required_roles = ("Admin", "Manager")
+    model = ReportTemplate
+    form_class = ReportTemplateForm
+    template_name = "reports/report_template_form.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["page_title"] = "Add Report Template"
+        return context
+
+    def get_success_url(self):
+        messages.success(self.request, "Report template added.")
+        return reverse("reports:template_list")
+
+
+class ReportTemplateUpdateView(PermissionRequiredMixin, RoleRequiredMixin, UpdateView):
+    permission_required = "reports.change_reporttemplate"
+    required_roles = ("Admin", "Manager")
+    model = ReportTemplate
+    form_class = ReportTemplateForm
+    template_name = "reports/report_template_form.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["page_title"] = "Edit Report Template"
+        return context
+
+    def get_success_url(self):
+        messages.success(self.request, "Report template updated.")
+        return reverse("reports:template_list")
+
+
+class ReportTemplateDeleteView(PermissionRequiredMixin, RoleRequiredMixin, DeleteView):
+    permission_required = "reports.delete_reporttemplate"
+    required_roles = ("Admin", "Manager")
+    model = ReportTemplate
+    template_name = "reports/report_template_confirm_delete.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["page_title"] = "Delete Report Template"
+        return context
+
+    def get_success_url(self):
+        messages.success(self.request, "Report template deleted.")
+        return reverse("reports:template_list")
+
+
+class ReportTemplateContentView(PermissionRequiredMixin, RoleRequiredMixin, DetailView):
+    permission_required = "reports.view_reporttemplate"
+    required_roles = ("Admin", "Manager", "Analyst")
+    model = ReportTemplate
+
+    def get(self, request, *args, **kwargs):
+        template = self.get_object()
+        return JsonResponse(
+            {
+                "id": template.pk,
+                "name": template.name,
+                "content": template.content,
+            }
+        )
+
+
+@method_decorator(require_http_methods(["GET"]), name="dispatch")
+class ReportTemplateApiListView(PermissionRequiredMixin, RoleRequiredMixin, ListView):
+    permission_required = "reports.view_reporttemplate"
+    required_roles = ("Admin", "Manager", "Analyst")
+    model = ReportTemplate
+
+    def render_to_response(self, context, **response_kwargs):
+        templates = context["object_list"]
+        return JsonResponse(
+            {
+                "templates": [
+                    {
+                        "id": template.pk,
+                        "name": template.name,
+                        "description": template.description,
+                        "content": template.content,
+                        "sample_name": template.sample_name.name if template.sample_name else None,
+                        "protocol": template.protocol.name if template.protocol else None,
+                        "created_at": timezone.localtime(template.created_at).isoformat() if timezone.is_aware(template.created_at) else template.created_at.isoformat(),
+                    }
+                    for template in templates
+                ]
+            }
+        )
+
+    def get_queryset(self):
+        return ReportTemplate.objects.filter(is_active=True).select_related("sample_name", "protocol").order_by("name")
+
+
+@method_decorator(require_http_methods(["GET", "POST"]), name="dispatch")
+class ReportApiDetailView(PermissionRequiredMixin, RoleRequiredMixin, DetailView):
     permission_required = "reports.view_report"
     required_roles = ("Manager", "Incharge", "Analyst")
-    permanent = False
+    model = Report
 
-    def get_redirect_url(self, *args, **kwargs):
-        return reverse("reports:coa_print", kwargs={"pk": kwargs["pk"]})
+    def get(self, request, *args, **kwargs):
+        report = self.get_object()
+        return JsonResponse(self._serialize_report(report))
+
+    def post(self, request, *args, **kwargs):
+        report = self.get_object()
+        if not request.user.has_perm("reports.change_report"):
+            return JsonResponse({"detail": "You do not have permission to edit reports."}, status=403)
+
+        html_content = request.POST.get("content", "")
+        report_name = request.POST.get("name", "").strip()
+        report.ceo_content = normalize_report_table_html(html_content)
+        report.save(update_fields=["ceo_content", "updated_at"])
+
+        payload = self._serialize_report(report)
+        if report_name:
+            payload["report_name"] = report_name
+        payload["saved"] = True
+        return JsonResponse(payload)
+
+    def _serialize_report(self, report):
+        return {
+            "id": report.pk,
+            "report_name": report.booking.sample_reg_no if report.booking else f"Report {report.pk}",
+            "content": report.ceo_content,
+            "created_at": timezone.localtime(report.created_at).isoformat() if timezone.is_aware(report.created_at) else report.created_at.isoformat(),
+            "updated_at": timezone.localtime(report.updated_at).isoformat() if timezone.is_aware(report.updated_at) else report.updated_at.isoformat(),
+            "template_id": report.report_template_id,
+            "booking_id": report.booking_id,
+            "certificate_no": report.certificate_no,
+        }

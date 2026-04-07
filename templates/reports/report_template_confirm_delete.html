@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}{{ page_title }} | LIMS{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h5 class="mb-0">{{ page_title }}</h5>
+  </div>
+  <div class="card-body">
+    <p>Delete template <strong>{{ object.name }}</strong>?</p>
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Delete</button>
+      <a href="{% url 'reports:template_list' %}" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

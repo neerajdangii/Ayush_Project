@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.db import models
 
-from bookings.models import Booking
+from bookings.models import Booking, ProtocolMaster, SampleNameMaster
 
 
 class ReportRemark(models.Model):
@@ -17,6 +17,34 @@ class ReportRemark(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+class ReportTemplate(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    sample_name = models.ForeignKey(
+        SampleNameMaster,
+        on_delete=models.SET_NULL,
+        related_name="report_templates",
+        null=True,
+        blank=True,
+    )
+    protocol = models.ForeignKey(
+        ProtocolMaster,
+        on_delete=models.SET_NULL,
+        related_name="report_templates",
+        null=True,
+        blank=True,
+    )
+    description = models.CharField(max_length=255, blank=True)
+    content = models.TextField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class Report(models.Model):
@@ -37,6 +65,13 @@ class Report(models.Model):
     )
 
     analysis_end_date = models.DateTimeField(null=True, blank=True)
+    report_template = models.ForeignKey(
+        ReportTemplate,
+        on_delete=models.SET_NULL,
+        related_name="reports",
+        null=True,
+        blank=True,
+    )
 
     manager = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -123,7 +158,6 @@ class Report(models.Model):
         )
 
     def approve_by_manager(self, manager_user, incharge_user=None):
-
         self.manager = manager_user
         self.manager_name = manager_user.get_full_name() or manager_user.username
         self.manager_signature = "Digitally Signed"
@@ -134,11 +168,12 @@ class Report(models.Model):
             self.incharge_name = (
                 incharge_user.get_full_name() or incharge_user.username
             )
-        elif not self.incharge_name:
-            self.incharge_name = "Incharge"
-
-        self.incharge_signature = "Digital Sign"
-        self.status = self.Status.INCHARGE_APPROVED
+            self.incharge_signature = "Digital Sign"
+            self.status = self.Status.INCHARGE_APPROVED
+        else:
+            self.incharge_name = ""
+            self.incharge_signature = ""
+            self.status = self.Status.MANAGER_APPROVED
 
         self.save(
             update_fields=[

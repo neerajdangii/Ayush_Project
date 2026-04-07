@@ -12,7 +12,7 @@ from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, DeleteView, ListView, TemplateView, UpdateView
 
-from reports.models import Report, ReportRemark
+from reports.models import Report, ReportRemark, ReportTemplate
 
 from .forms import (
     BookingForm,
@@ -65,6 +65,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context["counts"] = Booking.objects.values("status").annotate(total=Count("id"))
         context["reports_total"] = Report.objects.count()
+        context["report_templates_total"] = ReportTemplate.objects.count()
         context["masters"] = [
             {"slug": slug, "title": conf["title"], "count": conf["model"].objects.count()}
             for slug, conf in MASTER_CONFIG.items()

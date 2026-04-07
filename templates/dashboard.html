@@ -12,7 +12,7 @@
 <div class="starfield-overlay"></div>
 
 <div class="row g-3 mb-3">
-  <div class="col-md-4">
+  <div class="col-md-3">
     <div class="card h-100 shadow-sm">
       <div class="card-body">
         <h5 class="card-title">Bookings</h5>
@@ -27,7 +27,7 @@
       </div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-md-3">
     <div class="card h-100 shadow-sm">
       <div class="card-body">
         <h5 class="card-title">Create Booking</h5>
@@ -36,12 +36,21 @@
       </div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-md-3">
     <div class="card h-100 shadow-sm">
       <div class="card-body">
         <h5 class="card-title">Reports</h5>
         <p class="card-text">Total reports: {{ reports_total }}</p>
         <a class="btn btn-warning btn-sm" href="{% url 'reports:list' %}">Open Reports</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">Report Templates</h5>
+        <p class="card-text">Saved result templates: {{ report_templates_total }}</p>
+        <a class="btn btn-outline-primary btn-sm" href="{% url 'reports:template_list' %}">Open Templates</a>
       </div>
     </div>
   </div>

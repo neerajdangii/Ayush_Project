@@ -14,19 +14,78 @@
 </div>
 {% endblock %}
 
+{% block content %}
+{# First page preview fallback before pagination finishes #}
+<div class="coa-print-page coa-page-first" id="coa-page-first">
+  {% include 'reports/partials/coa_letterhead.html' with initial_result_html=report_ceo_content initial_tail_html=tail_html %}
+</div>
+
+{# Pagination infrastructure - hidden, used by JavaScript #}
+<div id="coa-page-prototype-first" style="display:none;">
+  <div class="coa-print-page">
+    {% include 'reports/partials/coa_letterhead.html' %}
+  </div>
+</div>
+
+<div id="coa-page-prototype-continuation" style="display:none;">
+  <div class="coa-print-page">
+    {% include 'reports/partials/coa_letterhead.html' with is_continuation=1 %}
+  </div>
+</div>
+
+{# Source content for pagination - this is what gets split #}
+<div id="coa-result-source" style="display:none;">
+  {{ report_ceo_content }}
+</div>
+
+{# Tail content that goes after the main result table #}
+<div id="coa-tail-source" style="display:none;">
+  <div class="coa-tail-block coa-keep-together">
+    <div class="coa-end-report">*** END OF REPORT ***</div>
+    {% if report.remark_text %}
+    <div class="coa-remark">Remark: {{ report.remark_text|linebreaksbr }}</div>
+    {% endif %}
+  </div>
+</div>
+
+{# Hidden measurement root #}
+<div id="coa-measure-root" style="position:absolute;visibility:hidden;pointer-events:none;left:-9999px;top:0;"></div>
+
+{# Rendered pages container #}
+<div id="coa-rendered-pages" class="coa-rendered-pages"></div>
+
+{# Debug status #}
+<div id="coa-debug-status" class="no-print" style="position:fixed;bottom:0;left:0;background:#000;color:#0f0;padding:4px 8px;font-family:monospace;font-size:11px;z-index:9999;"></div>
+{% endblock %}
+
 {% block extra_js %}
 {{ block.super }}
 {% if preview_mode %}
+<script src="{% static 'js/coa_paginate_v2.js' %}?v=20260407-4"></script>
+<script>
+(function() {
+  window.addEventListener('load', function() {
+    setTimeout(function() {
+      document.dispatchEvent(new CustomEvent('coa:ready'));
+    }, 100);
+  });
+})();
+</script>
+{% endif %}
 <script>
 (function(){
   const savePopup = document.querySelector('.coa-save-popup');
   const downloadBtn=document.getElementById('coa-download-btn');
-  const pdfUrl='{{ pdf_post_url }}';
+  const pdfUrl='{{ pdf_post_url|default:"" }}';
   const csrfToken='{{ csrf_token }}';
-  const plainParam='{{ plain_param }}';
-  const docParam='{{ doc_param }}';
+  const plainParam='{{ plain_param|default:"" }}';
+  const docParam='{{ doc_param|default:"" }}';
 
   async function downloadPdf(){
+    if(!pdfUrl){
+      alert('PDF download URL is not configured.');
+      return;
+    }
     const qrCanvas=document.querySelector('.coa-qr-code canvas');
     const qrData=qrCanvas? qrCanvas.toDataURL('image/png') : '';
     const form=new FormData();
@@ -59,8 +118,38 @@
   }
 
   if('{{ auto_print|yesno:"1,0" }}' === '1'){
-    document.addEventListener('coa:ready', () => {
-      setTimeout(() => window.print(), 400);
+    const printOnce = () => {
+      const url = new URL(window.location.href);
+      const params = new URLSearchParams(url.search);
+      params.delete('autoprint');
+      const cleanSearch = params.toString();
+      const cleanUrl = `${url.pathname}${cleanSearch ? `?${cleanSearch}` : ''}${url.hash}`;
+      const printKey = `coa_printed:${cleanUrl}`;
+
+      if (sessionStorage.getItem(printKey)) {
+        return;
+      }
+
+      sessionStorage.setItem(printKey, '1');
+      window.history.replaceState({}, '', cleanUrl);
+
+      setTimeout(() => {
+        window.print();
+      }, 400);
+    };
+
+    let triggered = false;
+    const triggerPrint = () => {
+      if (triggered) {
+        return;
+      }
+      triggered = true;
+      printOnce();
+    };
+
+    document.addEventListener('coa:ready', triggerPrint, { once: true });
+    window.addEventListener('load', () => {
+      setTimeout(triggerPrint, 700);
     }, { once: true });
   }
 })();
@@ -102,5 +191,4 @@
     }
   }
 </style>
-{% endif %}
 {% endblock %}

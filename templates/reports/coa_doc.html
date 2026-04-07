@@ -5,14 +5,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{{ document_title }} | {{ report.booking.sample_reg_no }}</title>
-  <link rel="stylesheet" href="{% static 'css/coa.css' %}">
+  <link rel="stylesheet" href="{% static 'css/coa.css' %}?v=20260406-2">
   {% block extra_head %}{% endblock %}
 </head>
 <body class="coa-standalone">
   {% block toolbar %}{% endblock %}
+  {% block content %}
   <div class="coa-print-page">
-    {% include 'reports/partials/coa_letterhead.html' %}
+    {% include 'reports/partials/coa_letterhead.html' with initial_result_html=report_ceo_content initial_tail_html=tail_html %}
   </div>
+  {% endblock %}
   {% block extra_js %}
   {% if not qr_image_data %}
   <script src="{% static 'js/qrcode.min.js' %}"></script>
@@ -38,7 +40,6 @@
     });
   </script>
   {% endif %}
-  <script src="{% static 'js/coa_paginate.js' %}"></script>
   {% endblock %}
 </body>
 </html>

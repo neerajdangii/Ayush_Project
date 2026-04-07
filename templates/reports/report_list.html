@@ -8,8 +8,9 @@
 </div>
 {% endif %}
 <div class="card shadow-sm">
-  <div class="card-header">
+  <div class="card-header d-flex justify-content-between align-items-center">
     <h5 class="mb-0">Reports</h5>
+    <a href="{% url 'reports:template_list' %}" class="btn btn-sm btn-outline-primary">Templates</a>
   </div>
   <div class="card-body table-responsive">
     <form method="get" class="row g-2 mb-3">
@@ -70,10 +71,10 @@
           <td>{{ r.manager_name|default:'-' }}</td>
           <td>
             <div class="d-flex flex-wrap gap-2">
-              <a class="btn btn-sm btn-outline-primary" href="{% url 'reports:coa_print' r.pk %}?autoprint=1" target="_blank">COA</a>
-              <a class="btn btn-sm btn-outline-success" href="{% url 'reports:coa_print' r.pk %}?plain=1&autoprint=1" target="_blank">COA Plain</a>
-              <a class="btn btn-sm btn-outline-info" href="{% url 'reports:coa_print' r.pk %}?doc=test&autoprint=1" target="_blank">Test Report</a>
-              <a class="btn btn-sm btn-outline-warning" href="{% url 'reports:coa_print' r.pk %}?doc=test&plain=1&autoprint=1" target="_blank">Test Report Plain</a>
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'reports:coa_print' r.pk %}" target="_blank">COA</a>
+              <a class="btn btn-sm btn-outline-success" href="{% url 'reports:coa_print' r.pk %}?plain=1" target="_blank">COA Plain</a>
+              <a class="btn btn-sm btn-outline-info" href="{% url 'reports:coa_print' r.pk %}?doc=test" target="_blank">Test Report</a>
+              <a class="btn btn-sm btn-outline-warning" href="{% url 'reports:coa_print' r.pk %}?doc=test&plain=1" target="_blank">Test Report Plain</a>
               <a class="btn btn-sm btn-primary" href="{% url 'reports:coa_edit' r.pk %}">Edit</a>
               <a class="btn btn-sm btn-outline-dark" href="{% url 'reports:coa_print' r.pk %}" target="_blank">View</a>
             </div>

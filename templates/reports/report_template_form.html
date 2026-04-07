@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ page_title }} | LIMS{% endblock %}
+{% block extra_head %}
+<script src="{% static 'js/tinymce/tinymce.min.js' %}"></script>
+{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">{{ page_title }}</h5>
+    <a href="{% url 'reports:template_list' %}" class="btn btn-sm btn-outline-secondary">Back</a>
+  </div>
+  <div class="card-body">
+    <form method="post" class="row g-3">
+      {% csrf_token %}
+      <div class="col-md-6">
+        <label class="form-label" for="{{ form.name.id_for_label }}">Template Name</label>
+        {{ form.name }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="{{ form.sample_name.id_for_label }}">Sample Name</label>
+        {{ form.sample_name }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" for="{{ form.protocol.id_for_label }}">Protocol</label>
+        {{ form.protocol }}
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="{{ form.description.id_for_label }}">Description</label>
+        {{ form.description }}
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="{{ form.content.id_for_label }}">Result Section Template</label>
+        {{ form.content }}
+        <div class="form-text">Design the result-section layout here. This content can be loaded into the COA edit page.</div>
+      </div>
+      <div class="col-md-4 d-flex align-items-end">
+        <div class="form-check">
+          {{ form.is_active }}
+          <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Active</label>
+        </div>
+      </div>
+      <div class="col-12">
+        <button class="btn btn-primary" type="submit">Save Template</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!window.tinymce) {
+      return;
+    }
+    tinymce.init({
+      selector: 'textarea[data-editor="tinymce"]',
+      height: 560,
+      menubar: 'file edit view insert format table tools',
+      branding: false,
+      plugins: 'lists table link code advlist charmap searchreplace wordcount preview',
+      toolbar_sticky: true,
+      toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | outdent indent | bullist numlist | table | removeformat code preview',
+      font_family_formats: 'Helvetica=helvetica,arial,sans-serif;Times New Roman=times new roman,times,serif;Calibri=calibri,sans-serif;Courier New=courier new,courier,monospace',
+      content_style: 'body{font-family:Helvetica,Arial,sans-serif;font-size:12pt;line-height:1.35;} table{border-collapse:collapse;} table td, table th{border:1px solid #111;padding:6px;}',
+      table_default_attributes: { border: '1', style: 'border-collapse:collapse;width:100%;' },
+      table_default_styles: {},
+      table_responsive_width: true,
+      license_key: 'gpl'
+    });
+  });
+</script>
+{% endblock %}

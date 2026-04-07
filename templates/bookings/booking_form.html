@@ -167,8 +167,19 @@
         <button class="btn btn-outline-primary plus-master booking-test-panel__add" type="button" data-slug="test" data-target="id_test_to_be_performed">+</button>
       </div>
       <div class="booking-test-panel__body">
-        <div class="booking-test-panel__main">
-          {{ form.test_to_be_performed }}
+        <div class="booking-test-panel__main booking-test-selector">
+          <div class="booking-test-selector__controls">
+            <div class="input-group">
+              <select id="bookingTestPicker" class="form-select">
+                <option value="">Select test to add</option>
+              </select>
+              <button type="button" class="btn btn-outline-primary booking-test-selector__add-btn" id="bookingAddTestBtn" aria-label="Add selected test">+</button>
+            </div>
+          </div>
+          <div class="booking-test-selector__rows" id="bookingSelectedTests"></div>
+          <div class="booking-test-selector__source d-none">
+            {{ form.test_to_be_performed }}
+          </div>
         </div>
       </div>
     </div>
@@ -606,6 +617,125 @@
     }
   }, true);
 
+  const testsSelect = document.getElementById('id_test_to_be_performed');
+  const testPicker = document.getElementById('bookingTestPicker');
+  const addTestButton = document.getElementById('bookingAddTestBtn');
+  const selectedTestsContainer = document.getElementById('bookingSelectedTests');
+
+  function getSelectedTests() {
+    if (!testsSelect) {
+      return [];
+    }
+    return Array.from(testsSelect.options).filter((option) => option.selected);
+  }
+
+  function syncTestPickerOptions() {
+    if (!testsSelect || !testPicker) {
+      return;
+    }
+    const currentValue = testPicker.value;
+    testPicker.innerHTML = '<option value="">Select test to add</option>';
+    Array.from(testsSelect.options)
+      .filter((option) => !option.selected)
+      .forEach((option) => {
+        const pickerOption = new Option(option.textContent, option.value);
+        testPicker.add(pickerOption);
+      });
+    if (Array.from(testPicker.options).some((option) => option.value === currentValue)) {
+      testPicker.value = currentValue;
+    }
+  }
+
+  function renderSelectedTests() {
+    if (!selectedTestsContainer || !testsSelect) {
+      return;
+    }
+
+    const selectedOptions = getSelectedTests();
+    selectedTestsContainer.innerHTML = '';
+
+    if (!selectedOptions.length) {
+      const emptyState = document.createElement('div');
+      emptyState.className = 'booking-test-selector__empty';
+      emptyState.textContent = 'No tests selected yet. Use the dropdown or + button to add tests.';
+      selectedTestsContainer.appendChild(emptyState);
+      syncTestPickerOptions();
+      return;
+    }
+
+    selectedOptions.forEach((option, index) => {
+      const row = document.createElement('div');
+      row.className = 'booking-test-row';
+
+      row.innerHTML = `
+        <div class="booking-test-row__cell booking-test-row__cell--name">
+          <span class="booking-test-row__index">${index + 1}</span>
+          <span>${option.textContent}</span>
+        </div>
+        <div class="booking-test-row__cell"></div>
+        <div class="booking-test-row__cell"></div>
+        <div class="booking-test-row__cell"></div>
+        <div class="booking-test-row__cell"></div>
+        <div class="booking-test-row__cell"></div>
+        <div class="booking-test-row__cell booking-test-row__cell--action">
+          <button type="button" class="btn btn-outline-danger booking-test-row__remove" data-test-id="${option.value}">Remove</button>
+        </div>
+      `;
+
+      selectedTestsContainer.appendChild(row);
+    });
+
+    syncTestPickerOptions();
+  }
+
+  if (testPicker && testsSelect) {
+    syncTestPickerOptions();
+    renderSelectedTests();
+
+    function addSelectedTestFromPicker() {
+      const selectedValue = testPicker.value;
+      if (!selectedValue) {
+        return false;
+      }
+      const option = Array.from(testsSelect.options).find((item) => item.value === selectedValue);
+      if (option) {
+        option.selected = true;
+        renderSelectedTests();
+      }
+      testPicker.value = '';
+      return !!option;
+    }
+
+    testPicker.addEventListener('change', () => {
+      if (addTestButton) {
+        addTestButton.disabled = !testPicker.value;
+      }
+    });
+
+    if (addTestButton) {
+      addTestButton.disabled = true;
+      addTestButton.addEventListener('click', () => {
+        addSelectedTestFromPicker();
+        addTestButton.disabled = !testPicker.value;
+      });
+    }
+
+    selectedTestsContainer.addEventListener('click', (event) => {
+      const removeButton = event.target.closest('.booking-test-row__remove');
+      if (!removeButton) {
+        return;
+      }
+      const option = Array.from(testsSelect.options).find((item) => item.value === removeButton.dataset.testId);
+      if (option) {
+        option.selected = false;
+        renderSelectedTests();
+        if (addTestButton) {
+          addTestButton.disabled = !testPicker.value;
+        }
+      }
+    });
+  }
+
   document.querySelectorAll('.plus-master').forEach((btn) => {
     btn.addEventListener('click', () => {
       current.slug = btn.dataset.slug;
@@ -647,7 +777,15 @@
 
     const option = new Option(data.name, data.id, true, true);
     target.add(option);
-    if (!target.multiple) {
+    if (target.multiple) {
+      option.selected = true;
+      if (target === testsSelect) {
+        renderSelectedTests();
+        if (addTestButton) {
+          addTestButton.disabled = !testPicker.value;
+        }
+      }
+    } else {
       target.value = data.id;
     }
     modal.hide();
