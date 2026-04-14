@@ -33,6 +33,14 @@ python3 manage.py runserver
 
 Open: `http://127.0.0.1:8000/accounts/login/`
 
+## VPS test deployment notes
+- For a VPS test deployment without HTTPS, keep these values disabled:
+  - `DJANGO_SECURE_SSL_REDIRECT=False`
+  - `DJANGO_SESSION_COOKIE_SECURE=False`
+  - `DJANGO_CSRF_COOKIE_SECURE=False`
+  - `DJANGO_SECURE_HSTS_SECONDS=0`
+- For PostgreSQL on Docker Compose, either set `DATABASE_URL` or set `DJANGO_USE_POSTGRES=True` with the `POSTGRES_*` variables.
+
 ## Main pages
 - Login: `/accounts/login/`
 - Dashboard: `/`

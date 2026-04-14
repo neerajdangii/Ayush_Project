@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.http import Http404
 from django.http import JsonResponse
+from django.http import HttpResponseServerError
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -16,9 +17,13 @@ from django.http import HttpResponse
 from django.template.defaultfilters import linebreaksbr
 from django.template.loader import render_to_string
 from django.utils.html import escape
-from weasyprint import HTML
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, TemplateView, UpdateView
 from django.utils.decorators import method_decorator
+
+try:
+    from weasyprint import HTML
+except (ImportError, OSError):
+    HTML = None
 
 from bookings.models import Booking
 from bookings.permissions import RoleRequiredMixin, has_role
@@ -288,6 +293,9 @@ class COAPDFView(PermissionRequiredMixin, RoleRequiredMixin, DetailView):
 
     def get(self, request, *args, **kwargs):
         report = self.get_object()
+
+        if HTML is None:
+            return HttpResponseServerError("PDF generation is unavailable because WeasyPrint system libraries are missing.")
 
         # Render HTML context
         context = self.get_context_data()
