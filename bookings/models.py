@@ -21,7 +21,7 @@ class ActiveMasterModel(models.Model):
 
 
 class CustomerMaster(ActiveMasterModel):
-    pass
+    address = models.TextField(blank=True)
 
 
 class SubmitterMaster(ActiveMasterModel):

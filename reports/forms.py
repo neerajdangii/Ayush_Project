@@ -2,7 +2,6 @@ from django import forms
 from django.db.models import Q
 
 from .models import Report, ReportRemark, ReportTemplate
-from .render_utils import normalize_report_table_html
 from .template_library import VITAMIN_ANALYSIS_REPORT_HTML
 
 DATE_FORMAT_DMY = "%d/%m/%Y"
@@ -60,11 +59,10 @@ class COAEditForm(forms.ModelForm):
             self.initial["report_template"] = selected_template.pk
 
         existing_content = (self.instance.ceo_content or "") if self.instance else ""
-        normalized_content = normalize_report_table_html(existing_content)
-        if normalized_content:
-            self.initial["ceo_content"] = normalized_content
+        if existing_content:
+            self.initial["ceo_content"] = existing_content
         elif selected_template:
-            self.initial["ceo_content"] = normalize_report_table_html(selected_template.content)
+            self.initial["ceo_content"] = selected_template.content
         else:
             self.fields["ceo_content"].initial = DEFAULT_COA_RESULT_TEMPLATE
 
@@ -74,6 +72,7 @@ class COAEditForm(forms.ModelForm):
 
         booking = self.instance.booking
         queryset = ReportTemplate.objects.filter(is_active=True)
+        default_template = queryset.filter(is_default=True).first()
         if booking.sample_name_id and booking.protocol_id:
             exact = queryset.filter(sample_name_id=booking.sample_name_id, protocol_id=booking.protocol_id).first()
             if exact:
@@ -86,7 +85,7 @@ class COAEditForm(forms.ModelForm):
             by_protocol = queryset.filter(sample_name__isnull=True, protocol_id=booking.protocol_id).first()
             if by_protocol:
                 return by_protocol
-        return queryset.filter(sample_name__isnull=True, protocol__isnull=True).first()
+        return default_template or queryset.filter(sample_name__isnull=True, protocol__isnull=True).first()
 
     def clean(self):
         cleaned_data = super().clean()
@@ -99,7 +98,7 @@ class COAEditForm(forms.ModelForm):
         return cleaned_data
 
     def clean_ceo_content(self):
-        return normalize_report_table_html(self.cleaned_data.get("ceo_content") or "")
+        return (self.cleaned_data.get("ceo_content") or "").strip()
 
     class Meta:
         model = Report
@@ -133,9 +132,15 @@ class ReportTemplateForm(forms.ModelForm):
         self.fields["sample_name"].queryset = self.fields["sample_name"].queryset.filter(is_active=True)
         self.fields["protocol"].queryset = self.fields["protocol"].queryset.filter(is_active=True)
 
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("is_default"):
+            cleaned_data["is_active"] = True
+        return cleaned_data
+
     class Meta:
         model = ReportTemplate
-        fields = ["name", "sample_name", "protocol", "description", "content", "is_active"]
+        fields = ["name", "sample_name", "protocol", "description", "content", "is_active", "is_default"]
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control"}),
             "sample_name": forms.Select(attrs={"class": "form-select"}),
@@ -149,7 +154,8 @@ class ReportTemplateForm(forms.ModelForm):
                 }
             ),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "is_default": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
     def clean_content(self):
-        return normalize_report_table_html(self.cleaned_data.get("content") or "")
+        return (self.cleaned_data.get("content") or "").strip()

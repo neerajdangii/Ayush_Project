@@ -25,8 +25,6 @@ from bookings.permissions import RoleRequiredMixin, has_role
 
 from .forms import COAEditForm, ReportApprovalForm, ReportTemplateForm
 from .models import Report, ReportRemark, ReportTemplate
-from .render_utils import normalize_report_table_html
-
 
 def _format_report_date(value, include_time=False, month_year_only=False):
     if not value:
@@ -59,9 +57,13 @@ def _build_report_date_context(report):
 
 
 def _get_report_render_context(report, request, *, preview_mode, auto_print, is_plain_doc, is_test_report):
+    remark_text = (report.remark_text or "").strip()
+    if not remark_text and report.selected_remark_id:
+        remark_text = (report.selected_remark.content or "").strip()
+
     tail_html = '<div class="coa-end-report">*** END OF REPORT ***</div>'
-    if report.remark_text:
-        tail_html += f'<div class="coa-remark">Remark: {linebreaksbr(escape(report.remark_text))}</div>'
+    if remark_text:
+        tail_html += f'<div class="coa-remark">Remark: {linebreaksbr(escape(remark_text))}</div>'
 
     context = {
         "report": report,
@@ -71,6 +73,7 @@ def _get_report_render_context(report, request, *, preview_mode, auto_print, is_
         "is_test_report": is_test_report,
         "document_title": "Test Report" if is_test_report else "Certificate of Analysis",
         "tail_html": mark_safe(tail_html),
+        "draft_remark_text": remark_text,
     }
 
     base = reverse("reports:coa_print", kwargs={"pk": report.pk})
@@ -81,7 +84,7 @@ def _get_report_render_context(report, request, *, preview_mode, auto_print, is_
 
     context["coa_public_url"] = request.build_absolute_uri(base)
     context["qr_payload"] = context["coa_public_url"]
-    context["report_ceo_content"] = mark_safe(normalize_report_table_html(report.ceo_content or ""))
+    context["report_ceo_content"] = mark_safe(report.ceo_content or "")
     context.update(_build_report_date_context(report))
     return context
 
@@ -198,6 +201,16 @@ class COAEditView(PermissionRequiredMixin, RoleRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         templates = ReportTemplate.objects.filter(is_active=True).select_related("sample_name", "protocol")
+        previous_reports = Report.objects.none()
+        sample_name_id = getattr(self.object.booking, "sample_name_id", None)
+        if sample_name_id:
+            previous_reports = (
+                Report.objects.select_related("booking")
+                .filter(booking__sample_name_id=sample_name_id)
+                .exclude(pk=self.object.pk)
+                .exclude(ceo_content="")
+                .order_by("-updated_at", "-created_at")
+            )
         context["remark_options"] = list(
             ReportRemark.objects.filter(is_active=True).values("id", "title", "content")
         )
@@ -209,6 +222,17 @@ class COAEditView(PermissionRequiredMixin, RoleRequiredMixin, UpdateView):
                 "protocol": template.protocol.name if template.protocol else "",
             }
             for template in templates
+        ]
+        context["old_report_options"] = [
+            {
+                "id": report.pk,
+                "sample_reg_no": report.booking.sample_reg_no,
+                "certificate_no": report.certificate_no,
+                "updated_at": timezone.localtime(report.updated_at).strftime("%d/%m/%Y %I:%M %p")
+                if timezone.is_aware(report.updated_at)
+                else report.updated_at.strftime("%d/%m/%Y %I:%M %p"),
+            }
+            for report in previous_reports[:20]
         ]
         return context
 
@@ -299,7 +323,7 @@ class ReportTemplateListView(PermissionRequiredMixin, RoleRequiredMixin, ListVie
     context_object_name = "templates"
 
     def get_queryset(self):
-        return ReportTemplate.objects.select_related("sample_name", "protocol").order_by("name")
+        return ReportTemplate.objects.select_related("sample_name", "protocol").order_by("-is_default", "name")
 
 
 class ReportTemplateCreateView(PermissionRequiredMixin, RoleRequiredMixin, CreateView):
@@ -414,7 +438,7 @@ class ReportApiDetailView(PermissionRequiredMixin, RoleRequiredMixin, DetailView
 
         html_content = request.POST.get("content", "")
         report_name = request.POST.get("name", "").strip()
-        report.ceo_content = normalize_report_table_html(html_content)
+        report.ceo_content = html_content
         report.save(update_fields=["ceo_content", "updated_at"])
 
         payload = self._serialize_report(report)

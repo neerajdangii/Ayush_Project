@@ -2,7 +2,6 @@
   "use strict";
 
   var FOOTER_SAFETY_GAP = 24;
-  var MIN_TABLE_ROWS_PER_PAGE = 4;
   var MAX_PAGES = 120;
   var MAX_ITERATIONS = 2000;
   var BLOCK_TAGS = {
@@ -125,11 +124,11 @@
   }
 
   function getResultContainerMaxHeight() {
-    var pageHeight    = parseCssLengthToPixels(VAR_PAGE_HEIGHT,        297 * 3.7795);
-    var letterheadTop = parseCssLengthToPixels(VAR_LETTERHEAD_TOP,      42 * 3.7795);
-    var plainTop      = parseCssLengthToPixels(VAR_PLAIN_TOP,           42 * 3.7795);
+    var pageHeight = parseCssLengthToPixels(VAR_PAGE_HEIGHT, 297 * 3.7795);
+    var letterheadTop = parseCssLengthToPixels(VAR_LETTERHEAD_TOP, 42 * 3.7795);
+    var plainTop = parseCssLengthToPixels(VAR_PLAIN_TOP, 42 * 3.7795);
     var paddingBottom = parseCssLengthToPixels(VAR_PAGE_PADDING_BOTTOM, 12 * 3.7795);
-    var footerReserve = parseCssLengthToPixels(VAR_FOOTER_RESERVE,     190);
+    var footerReserve = parseCssLengthToPixels(VAR_FOOTER_RESERVE, 190);
 
     var topOffset = Math.max(letterheadTop, plainTop);
     var available = pageHeight - topOffset - paddingBottom - footerReserve - FOOTER_SAFETY_GAP;
@@ -381,171 +380,21 @@
     return items;
   }
 
-  function splitTableNode(page, container, sourceTable, pageHasContent) {
-    var sections = buildTableSections(sourceTable);
-    var sectionGroups = sections.map(function (section) {
-      return buildRowGroups(section.rows);
-    });
-    var fittedGroupCounts = sectionGroups.map(function () {
-      return 0;
-    });
-    var fittedRows = 0;
-    var overflowed = false;
-    var measurementTable = createSplitTable(sourceTable);
-    var measurementSections = [];
-    var totalRows = sections.reduce(function (sum, section) {
-      return sum + section.rows.length;
-    }, 0);
-
-    sections.forEach(function (section) {
-      var sectionClone = section.source.cloneNode(false);
-      measurementTable.appendChild(sectionClone);
-      measurementSections.push(sectionClone);
-    });
-
-    container.appendChild(measurementTable);
-
-    function buildTableFromCounts(counts, startAtCount) {
-      var table = createSplitTable(sourceTable);
-
-      sections.forEach(function (section, sectionIndex) {
-        var sectionClone = section.source.cloneNode(false);
-        var groups = sectionGroups[sectionIndex];
-        var startIndex = startAtCount ? counts[sectionIndex] : 0;
-        var endIndex = startAtCount ? groups.length : counts[sectionIndex];
-
-        for (var groupIndex = startIndex; groupIndex < endIndex; groupIndex += 1) {
-          groups[groupIndex].forEach(function (row) {
-            sectionClone.appendChild(row.cloneNode(true));
-          });
-        }
-
-        table.appendChild(sectionClone);
-      });
-
-      pruneEmptyTableSections(table);
-      return table;
-    }
-
-    for (var sectionIndex = 0; sectionIndex < sections.length; sectionIndex += 1) {
-      var rowGroups = sectionGroups[sectionIndex];
-
-      for (var groupIndex = 0; groupIndex < rowGroups.length; groupIndex += 1) {
-        var group = rowGroups[groupIndex];
-        var appendedGroupRows = [];
-
-        group.forEach(function (row) {
-          var rowClone = row.cloneNode(true);
-          measurementSections[sectionIndex].appendChild(rowClone);
-          appendedGroupRows.push(rowClone);
-        });
-
-        if (isOverflowing(page, container)) {
-          appendedGroupRows.forEach(function (rowClone) {
-            if (rowClone.parentNode) rowClone.parentNode.removeChild(rowClone);
-          });
-          overflowed = true;
-          break;
-        }
-
-        fittedGroupCounts[sectionIndex] += 1;
-        fittedRows += group.length;
-      }
-
-      if (overflowed) {
-        break;
-      }
-    }
-
-    if (measurementTable.parentNode === container) {
-      container.removeChild(measurementTable);
-    }
-
-    if (!fittedRows) {
-      if (!pageHasContent && sections.length && sections[0].rows.length) {
-        var forcedTable = createSplitTable(sourceTable);
-        var forcedSection = sections[0].source.cloneNode(false);
-        forcedSection.appendChild(sections[0].rows[0].cloneNode(true));
-        forcedTable.appendChild(forcedSection);
-        container.appendChild(forcedTable);
-
-        fittedGroupCounts[0] = Math.max(1, fittedGroupCounts[0]);
-        var forcedRemainder = buildTableFromCounts(fittedGroupCounts, true);
-        if (!tableRowCount(forcedRemainder)) return { type: 'fit' };
-        return { type: 'split', remainder: forcedRemainder };
-      }
-
-      return { type: 'nofit' };
-    }
-
-    var remainderRows = totalRows - fittedRows;
-
-    while (overflowed && remainderRows > 0 && remainderRows < MIN_TABLE_ROWS_PER_PAGE) {
-      var shifted = false;
-
-      for (var shiftSectionIndex = sectionGroups.length - 1; shiftSectionIndex >= 0; shiftSectionIndex -= 1) {
-        var fitCount = fittedGroupCounts[shiftSectionIndex];
-        if (!fitCount) continue;
-
-        var candidateGroup = sectionGroups[shiftSectionIndex][fitCount - 1];
-        if (fittedRows - candidateGroup.length < MIN_TABLE_ROWS_PER_PAGE) {
-          continue;
-        }
-
-        fittedGroupCounts[shiftSectionIndex] -= 1;
-        fittedRows -= candidateGroup.length;
-        remainderRows += candidateGroup.length;
-        shifted = true;
-        break;
-      }
-
-      if (!shifted) {
-        break;
-      }
-    }
-
-    var workingTable = buildTableFromCounts(fittedGroupCounts, false);
-    var remainderTable = buildTableFromCounts(fittedGroupCounts, true);
-
-    container.appendChild(workingTable);
-
-    if (isOverflowing(page, container)) {
-      container.removeChild(workingTable);
-      return { type: 'nofit' };
-    }
-
-    if (!tableRowCount(remainderTable)) return { type: 'fit' };
-
-    var allTbodies = workingTable.querySelectorAll('tbody');
-    if (allTbodies.length) {
-      var lastTbody = allTbodies[allTbodies.length - 1];
-      var lastRow = lastTbody.rows[lastTbody.rows.length - 1];
-      if (lastRow) {
-        Array.from(lastRow.cells).forEach(function (cell) {
-          cell.style.borderBottom = '1px solid #111';
-          cell.style.boxShadow = 'inset 0 -1px 0 0 #111';
-        });
-      }
-    }
-
-    return { type: 'split', remainder: remainderTable };
-  }
-
   function appendWholeNode(page, container, node) {
     var clone = node.cloneNode(true);
     container.appendChild(clone);
 
     if (!isOverflowing(page, container)) {
-      return { type: 'fit' };
+      return { type: "fit" };
     }
 
     container.removeChild(clone);
-    return { type: 'nofit' };
+    return { type: "nofit" };
   }
 
   function splitParagraphNode(page, container, node, pageHasContent) {
-    var text = (node.textContent || '').replace(/\s+/g, ' ').trim();
-    var words = text ? text.split(' ') : [];
+    var text = (node.textContent || "").replace(/\s+/g, " ").trim();
+    var words = text ? text.split(" ") : [];
     var clone = node.cloneNode(false);
     var low = 1;
     var high = words.length;
@@ -557,7 +406,7 @@
 
     while (low <= high) {
       var mid = Math.floor((low + high) / 2);
-      clone.textContent = words.slice(0, mid).join(' ');
+      clone.textContent = words.slice(0, mid).join(" ");
 
       if (isOverflowing(page, container)) {
         high = mid - 1;
@@ -571,26 +420,136 @@
       container.removeChild(clone);
       if (!pageHasContent) {
         container.appendChild(node.cloneNode(true));
-        return { type: 'fit' };
+        return { type: "fit" };
       }
-      return { type: 'nofit' };
+      return { type: "nofit" };
     }
 
-    clone.textContent = words.slice(0, bestFit).join(' ');
+    clone.textContent = words.slice(0, bestFit).join(" ");
 
-    if (bestFit === words.length) return { type: 'fit' };
+    if (bestFit === words.length) return { type: "fit" };
 
     var remainder = node.cloneNode(false);
-    remainder.textContent = words.slice(bestFit).join(' ');
-    return { type: 'split', remainder: remainder };
+    remainder.textContent = words.slice(bestFit).join(" ");
+    return { type: "split", remainder: remainder };
+  }
+
+  function splitTableNode(page, container, sourceTable, pageHasContent) {
+    var workingTable = createSplitTable(sourceTable);
+    var remainderTable = createSplitTable(sourceTable);
+    var sections = buildTableSections(sourceTable);
+    var workingSections = [];
+    var remainderSections = [];
+    var fittedRows = 0;
+    var stopped = false;
+
+    sections.forEach(function (section) {
+      var workingSection = section.source.cloneNode(false);
+      var remainderSection = section.source.cloneNode(false);
+      workingTable.appendChild(workingSection);
+      remainderTable.appendChild(remainderSection);
+      workingSections.push(workingSection);
+      remainderSections.push(remainderSection);
+    });
+
+    container.appendChild(workingTable);
+
+    sections.forEach(function (section, sectionIndex) {
+      var rowGroups = buildRowGroups(section.rows);
+
+      if (stopped) {
+        section.rows.forEach(function (row) {
+          remainderSections[sectionIndex].appendChild(row.cloneNode(true));
+        });
+        return;
+      }
+
+      rowGroups.forEach(function (group, groupIndex) {
+        if (stopped) {
+          group.forEach(function (row) {
+            remainderSections[sectionIndex].appendChild(row.cloneNode(true));
+          });
+          return;
+        }
+
+        var appendedGroupRows = [];
+
+        group.forEach(function (row) {
+          var rowClone = row.cloneNode(true);
+          workingSections[sectionIndex].appendChild(rowClone);
+          appendedGroupRows.push(rowClone);
+        });
+
+        if (isOverflowing(page, container)) {
+          appendedGroupRows.forEach(function (rowClone) {
+            if (rowClone.parentNode) rowClone.parentNode.removeChild(rowClone);
+          });
+
+          group.forEach(function (row) {
+            remainderSections[sectionIndex].appendChild(row.cloneNode(true));
+          });
+          for (var remainderGroupIndex = groupIndex + 1; remainderGroupIndex < rowGroups.length; remainderGroupIndex += 1) {
+            rowGroups[remainderGroupIndex].forEach(function (remainingRow) {
+              remainderSections[sectionIndex].appendChild(remainingRow.cloneNode(true));
+            });
+          }
+          stopped = true;
+          return;
+        }
+
+        fittedRows += group.length;
+      });
+    });
+
+    pruneEmptyTableSections(workingTable);
+    pruneEmptyTableSections(remainderTable);
+
+    if (!fittedRows) {
+      if (!pageHasContent && sections.length && sections[0].rows.length) {
+        var wb = workingTable.querySelector("tbody");
+        if (!wb) {
+          wb = document.createElement("tbody");
+          workingTable.appendChild(wb);
+        }
+        wb.appendChild(sections[0].rows[0].cloneNode(true));
+        Array.from(remainderTable.querySelectorAll("tbody")).some(function (rb) {
+          if (rb.rows.length > 0) {
+            rb.removeChild(rb.rows[0]);
+            return true;
+          }
+          return false;
+        });
+        pruneEmptyTableSections(remainderTable);
+        if (!tableRowCount(remainderTable)) return { type: "fit" };
+        return { type: "split", remainder: remainderTable };
+      }
+      container.removeChild(workingTable);
+      return { type: "nofit" };
+    }
+
+    if (!tableRowCount(remainderTable)) return { type: "fit" };
+
+    (function () {
+      var allTbodies = workingTable.querySelectorAll("tbody");
+      if (!allTbodies.length) return;
+      var lastTbody = allTbodies[allTbodies.length - 1];
+      var lastRow = lastTbody.rows[lastTbody.rows.length - 1];
+      if (!lastRow) return;
+      Array.from(lastRow.cells).forEach(function (cell) {
+        cell.style.borderBottom = "1px solid #111";
+        cell.style.boxShadow = "inset 0 -1px 0 0 #111";
+      });
+    })();
+
+    return { type: "split", remainder: remainderTable };
   }
 
   function appendNode(page, container, node, pageHasContent) {
-    if (isPageBreak(node)) return { type: 'break' };
+    if (isPageBreak(node)) return { type: "break" };
 
-    if (isElement(node, 'table')) {
+    if (isElement(node, "table")) {
       var fitResult = appendWholeNode(page, container, node);
-      if (fitResult.type === 'fit') return fitResult;
+      if (fitResult.type === "fit") return fitResult;
       return splitTableNode(page, container, node, pageHasContent);
     }
 
@@ -601,89 +560,87 @@
     if (
       node.nodeType === Node.ELEMENT_NODE &&
       node.classList &&
-      node.classList.contains('coa-keep-together')
+      node.classList.contains("coa-keep-together")
     ) {
       var keepResult = appendWholeNode(page, container, node);
-      if (keepResult.type === 'fit') return keepResult;
+      if (keepResult.type === "fit") return keepResult;
 
       if (!pageHasContent) {
         container.appendChild(node.cloneNode(true));
-        return { type: 'fit' };
+        return { type: "fit" };
       }
 
-      return { type: 'nofit' };
+      return { type: "nofit" };
     }
 
     var blockResult = appendWholeNode(page, container, node);
-    if (blockResult.type === 'fit') return blockResult;
+    if (blockResult.type === "fit") return blockResult;
 
     if (!pageHasContent) {
       container.appendChild(node.cloneNode(true));
-      return { type: 'fit' };
+      return { type: "fit" };
     }
 
-    return { type: 'nofit' };
+    return { type: "nofit" };
   }
 
   function renderQRCodes(root) {
-    root.querySelectorAll('.coa-qr-code').forEach(function (target) {
+    root.querySelectorAll(".coa-qr-code").forEach(function (target) {
       var payload = target.dataset.qrPayload;
       if (!payload || !window.QRCode) return;
-      target.innerHTML = '';
+      target.innerHTML = "";
       new window.QRCode(target, { text: payload, width: 90, height: 90 });
     });
   }
 
   function renderFallbackFirstPage(source, tail) {
-    var firstPage = document.getElementById('coa-page-first');
-    var firstResult = firstPage ? firstPage.querySelector('.coa-page-result') : null;
+    var firstPage = document.getElementById("coa-page-first");
+    var firstResult = firstPage ? firstPage.querySelector(".coa-page-result") : null;
 
     if (!firstPage || !firstResult) return;
 
-    firstResult.innerHTML = '';
-
+    firstResult.innerHTML = "";
     if (source && source.innerHTML.trim()) {
       firstResult.innerHTML = source.innerHTML;
     }
-
     if (tail && tail.innerHTML.trim()) {
-      firstResult.insertAdjacentHTML('beforeend', tail.innerHTML);
+      firstResult.insertAdjacentHTML("beforeend", tail.innerHTML);
     }
 
     renderQRCodes(firstPage);
-    document.body.classList.remove('coa-rendered-ok');
-    document.body.classList.add('coa-pagination-failed');
-    document.dispatchEvent(new CustomEvent('coa:ready'));
+    document.body.classList.remove("coa-rendered-ok");
+    document.body.classList.add("coa-pagination-failed");
+    document.dispatchEvent(new CustomEvent("coa:ready"));
   }
 
   function paginate() {
-    var firstPrototype = document.getElementById('coa-page-prototype-first');
-    var continuationPrototype = document.getElementById('coa-page-prototype-continuation');
-    var source = document.getElementById('coa-result-source');
-    var tail = document.getElementById('coa-tail-source');
-    var renderedPages = document.getElementById('coa-rendered-pages');
-    var measureRoot = document.getElementById('coa-measure-root');
+    var firstPrototype = document.getElementById("coa-page-prototype-first");
+    var continuationPrototype = document.getElementById("coa-page-prototype-continuation");
+    var source = document.getElementById("coa-result-source");
+    var tail = document.getElementById("coa-tail-source");
+    var renderedPages = document.getElementById("coa-rendered-pages");
+    var measureRoot = document.getElementById("coa-measure-root");
     var pendingNodes;
     var pages = [];
     var iterations = 0;
 
     if (!firstPrototype || !continuationPrototype || !source || !tail || !renderedPages || !measureRoot) {
-      setDebugStatus('missing required DOM nodes');
+      setDebugStatus("missing required DOM nodes");
       renderFallbackFirstPage(source, tail);
       return;
     }
 
-    setDebugStatus('v3-dupe-fix loaded');
+    setDebugStatus("v2-fixed loaded");
 
     pendingNodes = collectPageItems(source, tail);
     if (!pendingNodes.length) {
-      setDebugStatus('no result content found');
+      setDebugStatus("no result content found");
       renderFallbackFirstPage(source, tail);
       return;
     }
 
-    renderedPages.innerHTML = '';
-    measureRoot.innerHTML = '';
+    renderedPages.innerHTML = "";
+    measureRoot.innerHTML = "";
 
     while (pendingNodes.length && pages.length < MAX_PAGES) {
       var prototype = pages.length === 0 ? firstPrototype : continuationPrototype;
@@ -694,9 +651,9 @@
 
       iterations += 1;
       if (iterations > MAX_ITERATIONS) {
-        setDebugStatus('pagination hit safety limit');
+        setDebugStatus("pagination hit safety limit");
         renderFallbackFirstPage(source, tail);
-        measureRoot.innerHTML = '';
+        measureRoot.innerHTML = "";
         return;
       }
 
@@ -707,19 +664,19 @@
         var candidate = pendingNodes[0];
         var result = appendNode(page, resultContainer, candidate, pageHasContent);
 
-        if (result.type === 'fit') {
+        if (result.type === "fit") {
           pendingNodes.shift();
           pageHasContent = true;
           continue;
         }
 
-        if (result.type === 'split') {
+        if (result.type === "split") {
           pendingNodes[0] = result.remainder;
           pageHasContent = true;
           break;
         }
 
-        if (result.type === 'break') {
+        if (result.type === "break") {
           pendingNodes.shift();
           if (pageHasContent) break;
           continue;
@@ -730,9 +687,9 @@
 
       if (!pageHasContent) {
         measureRoot.removeChild(page);
-        setDebugStatus('page ' + (pages.length + 1) + ' had no appendable content');
+        setDebugStatus("page " + (pages.length + 1) + " had no appendable content");
         renderFallbackFirstPage(source, tail);
-        measureRoot.innerHTML = '';
+        measureRoot.innerHTML = "";
         return;
       }
 
@@ -740,41 +697,41 @@
     }
 
     if (!pages.length) {
-      setDebugStatus('no rendered pages created');
+      setDebugStatus("no rendered pages created");
       renderFallbackFirstPage(source, tail);
       return;
     }
 
-    var firstPage = document.getElementById('coa-page-first');
-    var firstResult = firstPage ? firstPage.querySelector('.coa-page-result') : null;
+    var firstPage = document.getElementById("coa-page-first");
+    var firstResult = firstPage ? firstPage.querySelector(".coa-page-result") : null;
     if (firstResult) {
-      firstResult.innerHTML = '';
+      firstResult.innerHTML = "";
     }
 
     pages.forEach(function (page, index) {
-      var pageNumberTarget = page.querySelector('.coa-page-number');
+      var pageNumberTarget = page.querySelector(".coa-page-number");
       if (pageNumberTarget) {
-        pageNumberTarget.textContent = (index + 1) + ' of ' + pages.length;
+        pageNumberTarget.textContent = (index + 1) + " of " + pages.length;
       }
       renderedPages.appendChild(page);
     });
 
-    measureRoot.innerHTML = '';
+    measureRoot.innerHTML = "";
     renderQRCodes(renderedPages);
-    document.body.classList.add('coa-rendered-ok');
-    setDebugStatus('pages created: ' + pages.length + ' (dupe-fix)');
-    document.dispatchEvent(new CustomEvent('coa:ready'));
+    document.body.classList.add("coa-rendered-ok");
+    setDebugStatus("pages created: " + pages.length);
+    document.dispatchEvent(new CustomEvent("coa:ready"));
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
+  document.addEventListener("DOMContentLoaded", function () {
     try {
       paginate();
     } catch (error) {
-      setDebugStatus('error: ' + error.message);
-      console.error('COA pagination failed', error);
+      setDebugStatus("error: " + error.message);
+      console.error("COA pagination failed", error);
       renderFallbackFirstPage(
-        document.getElementById('coa-result-source'),
-        document.getElementById('coa-tail-source')
+        document.getElementById("coa-result-source"),
+        document.getElementById("coa-tail-source")
       );
     }
   });

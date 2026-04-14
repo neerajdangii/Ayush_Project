@@ -123,6 +123,7 @@
               {{ form.customer }}
               <button class="btn btn-outline-primary plus-master" type="button" data-slug="customer" data-target="id_customer">+</button>
             </div>
+            <div class="form-text booking-customer-address" id="customerAddressPreview"></div>
           </div>
           <div class="booking-col">
             <label class="form-label">Submitter Name / Supplied By <span class="required-mark">*</span></label>
@@ -208,6 +209,10 @@
       <div class="modal-body">
         <label class="form-label" for="inlineMasterName">Name</label>
         <input type="text" id="inlineMasterName" class="form-control" maxlength="255">
+        <div class="mt-3 d-none" id="inlineMasterAddressWrap">
+          <label class="form-label" for="inlineMasterAddress">Address</label>
+          <textarea id="inlineMasterAddress" class="form-control" rows="3"></textarea>
+        </div>
         <div class="text-danger small mt-2 d-none" id="inlineMasterError"></div>
       </div>
       <div class="modal-footer">
@@ -226,8 +231,12 @@
   const modalElement = document.getElementById('inlineMasterModal');
   const modal = new bootstrap.Modal(modalElement);
   const nameInput = document.getElementById('inlineMasterName');
+  const addressInput = document.getElementById('inlineMasterAddress');
+  const addressWrap = document.getElementById('inlineMasterAddressWrap');
   const errorBox = document.getElementById('inlineMasterError');
   const saveBtn = document.getElementById('inlineMasterSaveBtn');
+  const customerSelect = document.getElementById('id_customer');
+  const customerAddressPreview = document.getElementById('customerAddressPreview');
   let current = { slug: '', targetId: '' };
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -237,6 +246,16 @@
   let activeDateInput = null;
   let viewDate = null;
   let selectedPickerDate = null;
+
+  function updateCustomerAddressPreview() {
+    if (!customerSelect || !customerAddressPreview) {
+      return;
+    }
+    const selectedOption = customerSelect.options[customerSelect.selectedIndex];
+    const address = selectedOption ? (selectedOption.dataset.address || '').trim() : '';
+    customerAddressPreview.textContent = address;
+    customerAddressPreview.style.display = address ? 'block' : 'none';
+  }
 
   function formatDate(date) {
     const day = String(date.getDate()).padStart(2, '0');
@@ -678,7 +697,7 @@
         <div class="booking-test-row__cell"></div>
         <div class="booking-test-row__cell"></div>
         <div class="booking-test-row__cell booking-test-row__cell--action">
-          <button type="button" class="btn btn-outline-danger booking-test-row__remove" data-test-id="${option.value}">Remove</button>
+          <button type="button" class="btn btn-outline-danger booking-test-row__remove" data-test-id="${option.value}" aria-label="Remove test">-</button>
         </div>
       `;
 
@@ -741,6 +760,8 @@
       current.slug = btn.dataset.slug;
       current.targetId = btn.dataset.target;
       nameInput.value = '';
+      addressInput.value = '';
+      addressWrap.classList.toggle('d-none', current.slug !== 'customer');
       errorBox.classList.add('d-none');
       errorBox.textContent = '';
       modal.show();
@@ -762,6 +783,9 @@
     }
     const body = new URLSearchParams();
     body.append('name', name);
+    if (current.slug === 'customer') {
+      body.append('address', addressInput.value.trim());
+    }
 
     const response = await fetch(`/bookings/masters/${current.slug}/inline-create/`, {
       method: 'POST',
@@ -776,6 +800,9 @@
     }
 
     const option = new Option(data.name, data.id, true, true);
+    if (data.address) {
+      option.dataset.address = data.address;
+    }
     target.add(option);
     if (target.multiple) {
       option.selected = true;
@@ -787,9 +814,24 @@
       }
     } else {
       target.value = data.id;
+      if (target === customerSelect) {
+        updateCustomerAddressPreview();
+      }
     }
     modal.hide();
   });
+
+  if (customerSelect) {
+    customerSelect.addEventListener('change', updateCustomerAddressPreview);
+    updateCustomerAddressPreview();
+  }
 })();
 </script>
+<style>
+  .booking-customer-address {
+    margin-top: 6px;
+    white-space: pre-line;
+    color: #475569;
+  }
+</style>
 {% endblock %}

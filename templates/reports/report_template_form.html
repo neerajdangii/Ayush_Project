@@ -13,31 +13,49 @@
   <div class="card-body">
     <form method="post" class="row g-3">
       {% csrf_token %}
+      {% if form.non_field_errors %}
+      <div class="col-12">
+        <div class="alert alert-danger py-2 mb-0">
+          {{ form.non_field_errors }}
+        </div>
+      </div>
+      {% endif %}
       <div class="col-md-6">
         <label class="form-label" for="{{ form.name.id_for_label }}">Template Name</label>
         {{ form.name }}
+        {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors }}</div>{% endif %}
       </div>
       <div class="col-md-3">
         <label class="form-label" for="{{ form.sample_name.id_for_label }}">Sample Name</label>
         {{ form.sample_name }}
+        {% if form.sample_name.errors %}<div class="text-danger small mt-1">{{ form.sample_name.errors }}</div>{% endif %}
       </div>
       <div class="col-md-3">
         <label class="form-label" for="{{ form.protocol.id_for_label }}">Protocol</label>
         {{ form.protocol }}
+        {% if form.protocol.errors %}<div class="text-danger small mt-1">{{ form.protocol.errors }}</div>{% endif %}
       </div>
       <div class="col-12">
         <label class="form-label" for="{{ form.description.id_for_label }}">Description</label>
         {{ form.description }}
+        {% if form.description.errors %}<div class="text-danger small mt-1">{{ form.description.errors }}</div>{% endif %}
       </div>
       <div class="col-12">
         <label class="form-label" for="{{ form.content.id_for_label }}">Result Section Template</label>
         {{ form.content }}
         <div class="form-text">Design the result-section layout here. This content can be loaded into the COA edit page.</div>
+        {% if form.content.errors %}<div class="text-danger small mt-1">{{ form.content.errors }}</div>{% endif %}
       </div>
       <div class="col-md-4 d-flex align-items-end">
         <div class="form-check">
           {{ form.is_active }}
           <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Active</label>
+        </div>
+      </div>
+      <div class="col-md-4 d-flex align-items-end">
+        <div class="form-check">
+          {{ form.is_default }}
+          <label class="form-check-label" for="{{ form.is_default.id_for_label }}">Use as default template</label>
         </div>
       </div>
       <div class="col-12">
@@ -68,6 +86,15 @@
       table_responsive_width: true,
       license_key: 'gpl'
     });
+
+    const form = document.querySelector('form[method="post"]');
+    if (form) {
+      form.addEventListener('submit', function () {
+        if (window.tinymce) {
+          window.tinymce.triggerSave();
+        }
+      });
+    }
   });
 </script>
 {% endblock %}

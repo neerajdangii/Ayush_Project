@@ -39,7 +39,12 @@ from .permissions import RoleRequiredMixin
 
 
 MASTER_CONFIG = {
-    "customer": {"model": CustomerMaster, "form": CustomerMasterForm, "title": "Customer Master"},
+    "customer": {
+        "model": CustomerMaster,
+        "form": CustomerMasterForm,
+        "title": "Customer Master",
+        "detail_attr": "address",
+    },
     "submitter": {"model": SubmitterMaster, "form": SubmitterMasterForm, "title": "Submitter Master"},
     "manufacturer": {"model": ManufacturerMaster, "form": ManufacturerMasterForm, "title": "Manufacturer Master"},
     "sample-name": {"model": SampleNameMaster, "form": SampleNameMasterForm, "title": "Sample Name Master"},
@@ -353,12 +358,23 @@ class InlineMasterCreateView(RoleRequiredMixin, View):
         if not name:
             return JsonResponse({"error": "Name is required."}, status=400)
 
-        obj, created = conf["model"].objects.get_or_create(name=name, defaults={"is_active": True})
+        defaults = {"is_active": True}
+        if slug == "customer":
+            defaults["address"] = request.POST.get("address", "").strip()
+
+        obj, created = conf["model"].objects.get_or_create(name=name, defaults=defaults)
         if not obj.is_active:
             obj.is_active = True
             obj.save(update_fields=["is_active"])
 
-        return JsonResponse({"id": obj.pk, "name": obj.name, "created": created})
+        return JsonResponse(
+            {
+                "id": obj.pk,
+                "name": obj.name,
+                "address": getattr(obj, "address", ""),
+                "created": created,
+            }
+        )
 
 
 def create_default_roles():

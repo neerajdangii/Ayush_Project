@@ -38,6 +38,7 @@ class ReportTemplate(models.Model):
     description = models.CharField(max_length=255, blank=True)
     content = models.TextField()
     is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -45,6 +46,11 @@ class ReportTemplate(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.is_default:
+            self.__class__.objects.exclude(pk=self.pk).filter(is_default=True).update(is_default=False)
 
 
 class Report(models.Model):

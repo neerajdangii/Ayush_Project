@@ -17,7 +17,7 @@
 {% block content %}
 {# First page preview fallback before pagination finishes #}
 <div class="coa-print-page coa-page-first" id="coa-page-first">
-  {% include 'reports/partials/coa_letterhead.html' with initial_result_html=report_ceo_content initial_tail_html=tail_html %}
+  {% include 'reports/partials/coa_letterhead.html' %}
 </div>
 
 {# Pagination infrastructure - hidden, used by JavaScript #}
@@ -34,7 +34,7 @@
 </div>
 
 {# Source content for pagination - this is what gets split #}
-<div id="coa-result-source" style="display:none;">
+<div id="coa-result-source" class="coa-results" style="display:none;">
   {{ report_ceo_content }}
 </div>
 
@@ -61,7 +61,7 @@
 {% block extra_js %}
 {{ block.super }}
 {% if preview_mode %}
-<script src="{% static 'js/coa_paginate_v2.js' %}?v=20260407-4"></script>
+<script src="{% static 'js/coa_paginate_v2.js' %}?v=20260410-1"></script>
 <script>
 (function() {
   window.addEventListener('load', function() {

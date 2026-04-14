@@ -42,6 +42,9 @@
               {% else %}
               <span class="badge text-bg-secondary">Inactive</span>
               {% endif %}
+              {% if template.is_default %}
+              <span class="badge text-bg-primary ms-1">Default</span>
+              {% endif %}
             </td>
             <td>{{ template.created_at|date:'Y-m-d H:i' }}</td>
             <td class="d-flex gap-2">

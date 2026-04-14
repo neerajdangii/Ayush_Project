@@ -246,6 +246,71 @@
       }
     }
 
+    const oldReportScript = document.getElementById('old-report-options-data');
+    const oldReportSelect = document.getElementById('id_old_report_source');
+    const applyOldReportButton = document.getElementById('apply-old-report-data');
+    const reportApiDetailUrlNode = document.getElementById('report-api-detail-url');
+    if (oldReportScript && oldReportSelect && applyOldReportButton && reportApiDetailUrlNode) {
+      try {
+        const oldReports = JSON.parse(oldReportScript.textContent);
+        const reportApiDetailUrlPattern = JSON.parse(reportApiDetailUrlNode.textContent || '""');
+
+        applyOldReportButton.addEventListener('click', () => {
+          const selected = oldReports.find((item) => String(item.id) === oldReportSelect.value);
+          if (!selected) {
+            alert('Please select previous sample data first.');
+            return;
+          }
+
+          const shouldReplace = window.confirm(
+            'Load result data from this previous report? This will replace the current editor content.'
+          );
+          if (!shouldReplace) {
+            return;
+          }
+
+          applyOldReportButton.disabled = true;
+          const requestUrl = reportApiDetailUrlPattern.replace(/0\/$/, `${selected.id}/`);
+
+          fetch(requestUrl, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error('Old report request failed');
+              }
+              return response.json();
+            })
+            .then((payload) => {
+              const content = payload.content || '';
+              if (window.tinymce) {
+                const editor = window.tinymce.get('editor');
+                if (editor) {
+                  editor.setContent(content);
+                  editor.focus();
+                  return;
+                }
+              }
+
+              const textarea = document.getElementById('editor');
+              if (textarea) {
+                textarea.value = content;
+                textarea.dispatchEvent(new Event('input'));
+              }
+            })
+            .catch((err) => {
+              console.error('Unable to load selected old report data', err);
+              alert('Unable to load the selected old report data.');
+            })
+            .finally(() => {
+              applyOldReportButton.disabled = false;
+            });
+        });
+      } catch (err) {
+        console.error('Unable to parse old report list', err);
+      }
+    }
+
     document.querySelectorAll('.copy-tracking').forEach((btn) => {
       btn.addEventListener('click', () => {
         const value = btn.dataset.copy;

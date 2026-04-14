@@ -1,0 +1,158 @@
+(function () {
+  \"use strict\";
+
+  var FOOTER_SAFETY_GAP = 24;
+  var MAX_PAGES = 120;
+  var MAX_ITERATIONS = 2000;
+  var BLOCK_TAGS = {
+    p: true,
+    ul: true,
+    ol: true,
+    li: true,
+    h1: true,
+    h2: true,
+    h3: true,
+    h4: true,
+    h5: true,
+    h6: true,
+    blockquote: true,
+    pre: true,
+    hr: true
+  };
+  var TABLE_FRAGMENT_TAGS = {
+    caption: true,
+    colgroup: true,
+    col: true,
+    thead: true,
+    tbody: true,
+    tfoot: true,
+    tr: true,
+    th: true,
+    td: true
+  };
+
+  var VAR_PAGE_HEIGHT = \"--coa-page-height\";
+  var VAR_LETTERHEAD_TOP = \"--coa-letterhead-top\";
+  var VAR_PLAIN_TOP = \"--coa-plain-top\";
+  var VAR_PAGE_PADDING_BOTTOM = \"--coa-page-padding-bottom\";
+  var VAR_FOOTER_RESERVE = \"--coa-footer-reserve\";
+
+  function setDebugStatus(message) {
+    var debugNode = document.getElementById(\"coa-debug-status\");
+    if (debugNode) {
+      debugNode.textContent = \"COA debug: \" + message;
+    }
+  }
+
+  function nonBlankNodes(container) {
+    return Array.from(container.childNodes).filter(function (node) {
+      return !(node.nodeType === Node.TEXT_NODE && !node.textContent.trim());
+    });
+  }
+
+  function isElement(node, tagName) {
+    return node && node.nodeType === Node.ELEMENT_NODE && node.tagName.toLowerCase() === tagName;
+  }
+
+  function isPageBreak(node) {
+    return !!(
+      node &&
+      node.nodeType === Node.ELEMENT_NODE &&
+      node.classList &&
+      (node.classList.contains(\"coa-page-break\") || node.classList.contains(\"coa-force-break\"))
+    );
+  }
+
+  function isTableFragmentElement(node) {
+    return !!(
+      node &&
+      node.nodeType === Node.ELEMENT_NODE &&
+      TABLE_FRAGMENT_TAGS[node.tagName.toLowerCase()]
+    );
+  }
+
+  function isTailBlock(node) {
+    return !!(
+      node &&
+      node.nodeType === Node.ELEMENT_NODE &&
+      node.classList &&
+      node.classList.contains(\"coa-tail-block\")
+    );
+  }
+
+  function tableRowCount(table) {
+    if (!table || !table.querySelectorAll) return 0;
+
+    var bodyRows = table.querySelectorAll(\"tbody > tr\");
+    if (bodyRows.length) return bodyRows.length;
+
+    return Array.from(table.rows || []).filter(function (row) {
+      return row.parentElement === table;
+    }).length;
+  }
+
+  function pruneEmptyTableSections(table) {
+    if (!table) return;
+
+    Array.from(table.querySelectorAll(\"tbody, tfoot\")).forEach(function (section) {
+      if (!(section.rows && section.rows.length)) {
+        section.parentNode.removeChild(section);
+      }
+    });
+  }
+
+  function parseCssLengthToPixels(cssVar, defaultValue) {
+    var root = document.documentElement;
+    var value = getComputedStyle(root).getPropertyValue(cssVar).trim();
+
+    if (!value) return defaultValue;
+
+    // Measure using height so mm units convert correctly via browser layout engine
+    var temp = document.createElement(\"div\");
+    temp.style.cssText = [
+      \"position:absolute\",
+      \"visibility:hidden\",
+      \"pointer-events:none\",
+      \"left:-99999px\",
+      \"top:0\",
+      \"width:1px\",
+      \"height:\" + value
+    ].join(\";\");
+    document.documentElement.appendChild(temp);
+    var pixels = temp.offsetHeight || defaultValue;
+    document.documentElement.removeChild(temp);
+    return pixels;
+  }
+
+  function getResultContainerMaxHeight() {
+    // Measure each CSS variable properly (mm values use height measurement)
+    var pageHeight    = parseCssLengthToPixels(VAR_PAGE_HEIGHT,        297 * 3.7795);
+    var letterheadTop = parseCssLengthToPixels(VAR_LETTERHEAD_TOP,      42 * 3.7795);
+    var plainTop      = parseCssLengthToPixels(VAR_PLAIN_TOP,           42 * 3.7795);
+    var paddingBottom = parseCssLengthToPixels(VAR_PAGE_PADDING_BOTTOM, 12 * 3.7795);
+    var footerReserve = parseCssLengthToPixels(VAR_FOOTER_RESERVE,     190);
+
+    var topOffset = Math.max(letterheadTop, plainTop);
+    var available = pageHeight - topOffset - paddingBottom - footerReserve - FOOTER_SAFETY_GAP;
+
+    return Math.max(200, available);
+  }
+
+  function cloneFixedTableParts(sourceTable, targetTable) {
+    Array.from(sourceTable.children).forEach(function (child) {
+      if (!child.tagName) return;
+      var tag = child.tagName.toLowerCase();
+      if (tag === \"caption\" || tag === \"colgroup\" || tag === \"thead\") {
+        targetTable.appendChild(child.cloneNode(true));
+      }
+    });
+  }
+
+  function createSplitTable(sourceTable) {
+    var table = sourceTable.cloneNode(false);
+    cloneFixedTableParts(sourceTable, table);
+    return table;
+  }
+
+  // ... rest of original code unchanged
+})

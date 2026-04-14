@@ -1,0 +1,84 @@
+<div class="coa-page-header{% if is_continuation %} coa-continuation-header{% endif %}">
+  <div class="coa-doc-head">
+    {% if not is_plain_doc %}
+    <div class="coa-doc-head__title">{{ document_title }}</div>
+    {% endif %}
+    <div class="coa-meta-bar">
+      <div class="coa-meta-bar__right">
+        <div class="coa-page-info">Page <span class="coa-page-number">{% if is_continuation %}2{% else %}1{% endif %}</span></div>
+        <div class="coa-cert">Certificate No.: {{ report.certificate_no }}</div>
+      </div>
+    </div>
+    {% if report.final_outcome == 'draft' %}
+    <div class="coa-draft-note">
+      <strong>DRAFT{% if draft_remark_text %} REMARK:{% endif %}</strong>
+      {% if draft_remark_text %} {{ draft_remark_text|linebreaksbr }}{% endif %}
+    </div>
+    {% endif %}
+    <table class="coa-meta-table">
+      <colgroup>
+        <col style="width:23%">
+        <col style="width:16%">
+        <col style="width:11%">
+        <col style="width:15%">
+        <col style="width:22%">
+        <col style="width:26%">
+      </colgroup>
+      <tr>
+        <th>Sample Submitted By</th>
+        <td colspan="5" class="full-value">
+          <div class="meta-primary">{{ report.booking.customer.name }}</div>
+          {% if report.booking.sample_location %}
+          <div class="meta-secondary">{{ report.booking.sample_location|linebreaksbr }}</div>
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <th>Ref. No.</th>
+        <td colspan="3">{{ report.booking.remarks|default:"N.S." }}</td>
+        <th>Letter Date</th>
+        <td>{{ report_letter_date }}</td>
+      </tr>
+      <tr>
+        <th>Sample Name</th>
+        <td colspan="3">{{ report.booking.sample_name.name|default:"-" }}</td>
+        <th>Received Date</th>
+        <td>{{ report_received_date }}</td>
+      </tr>
+      <tr>
+        <th>Manufactured By</th>
+        <td colspan="3">{{ report.booking.manufacturer.name|default:"-" }}</td>
+        <th>Date of Analysis</th>
+        <td>{{ report_analysis_start_date }}</td>
+      </tr>
+      <tr>
+        <th>Supplied By</th>
+        <td colspan="3">{{ report.booking.submitter.name|default:"N.S." }}</td>
+        <th>Date of Completion</th>
+        <td>{{ report_analysis_end_date }}</td>
+      </tr>
+      <tr>
+        <th>Batch No./Code No.</th>
+        <td>{{ report.booking.batch_no|default:"-" }}</td>
+        <th>Batch Size</th>
+        <td>{{ report.booking.batch_size|default:"-" }}</td>
+        <th>Sample Qty.</th>
+        <td>{{ report.booking.sample_qty|default:"-" }}{% if report.booking.uom.name %} {{ report.booking.uom.name }}{% endif %}</td>
+      </tr>
+      <tr>
+        <th>Mfg. Date</th>
+        <td>{{ report_manufacture_date }}</td>
+        <th>Exp. Date</th>
+        <td>{{ report_expiry_date }}</td>
+        <th>Sample Condition</th>
+        <td>{{ report.booking.sample_condition|default:"-" }}</td>
+      </tr>
+      <tr>
+        <th>Protocol/Ref. Standard</th>
+        <td colspan="3">{{ report.booking.protocol.name|default:"-" }}</td>
+        <th>Lic. No</th>
+        <td>{{ report.booking.license_no|default:"-" }}</td>
+      </tr>
+    </table>
+  </div>
+</div>

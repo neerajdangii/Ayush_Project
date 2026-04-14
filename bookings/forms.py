@@ -21,6 +21,21 @@ DATE_PLACEHOLDER = "DD/MM/YYYY"
 DATETIME_PLACEHOLDER = "DD/MM/YYYY HH:MM AM"
 
 
+class CustomerSelect(forms.Select):
+    def __init__(self, *args, address_map=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.address_map = address_map or {}
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        option_value = option.get("value")
+        if option_value is not None:
+            address = self.address_map.get(str(option_value), "")
+            if address:
+                option["attrs"]["data-address"] = address
+        return option
+
+
 class BookingForm(forms.ModelForm):
     DATETIME_INPUT_FIELDS = [
         "booking_date",
@@ -171,7 +186,12 @@ class BookingForm(forms.ModelForm):
         for field_name in self.DATE_INPUT_FIELDS:
             self.fields[field_name].input_formats = [DATE_INPUT_FORMAT, DATE_FORMAT_DMY, DATETIME_FORMAT_DMY]
 
-        self.fields["customer"].queryset = CustomerMaster.objects.filter(is_active=True)
+        customer_queryset = CustomerMaster.objects.filter(is_active=True)
+        self.fields["customer"].queryset = customer_queryset
+        self.fields["customer"].widget = CustomerSelect(
+            attrs={"class": "form-select"},
+            address_map={str(customer.pk): customer.address for customer in customer_queryset},
+        )
         self.fields["submitter"].queryset = SubmitterMaster.objects.filter(is_active=True)
         self.fields["manufacturer"].queryset = ManufacturerMaster.objects.filter(is_active=True)
         self.fields["sample_name"].queryset = SampleNameMaster.objects.filter(is_active=True)
@@ -192,6 +212,12 @@ class MasterForm(forms.ModelForm):
 class CustomerMasterForm(MasterForm):
     class Meta(MasterForm.Meta):
         model = CustomerMaster
+        fields = ["name", "address", "is_active"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "address": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
 
 
 class SubmitterMasterForm(MasterForm):

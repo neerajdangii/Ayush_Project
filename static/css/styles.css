@@ -701,6 +701,7 @@ th, td {
   background: transparent;
   padding: 0;
   justify-content: flex-end;
+  align-items: flex-start;
 }
 
 .booking-test-row__index {
@@ -718,10 +719,14 @@ th, td {
 }
 
 .booking-test-row__remove {
-  min-width: 74px;
-  padding: 6px 10px;
-  font-size: 11px;
+  min-width: 34px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 2px;
+  font-size: 20px;
   font-weight: 700;
+  line-height: 1;
 }
 
 .booking-test-panel select[multiple] {
