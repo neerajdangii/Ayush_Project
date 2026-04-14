@@ -311,22 +311,6 @@ body.coa-rendered-ok #coa-page-first {
   margin-bottom: 10px;
 }
 
-.coa-draft-note {
-  margin: 0 0 8px;
-  padding: 4px 6px;
-  border: 1px solid rgba(220, 38, 38, 0.6);
-  background: rgba(254, 226, 226, 0.85);
-  color: #991b1b;
-  font-size: 11px;
-  line-height: 1.3;
-  text-align: left;
-  white-space: normal;
-}
-
-.coa-draft-note strong {
-  font-weight: 700;
-}
-
 .coa-meta-table th,
 .coa-meta-table td {
   border: 1px solid #000;
@@ -646,16 +630,17 @@ body.coa-rendered-ok #coa-page-first {
 
 .coa-draft-watermark {
   position: absolute;
-  top: 50%;
+  top: 56%;
   left: 50%;
-  transform: translate(-50%, -50%) rotate(-24deg);
-  font-size: 72px;
-  color: rgba(220, 38, 38, 0.28);
+  transform: translate(-50%, -50%) rotate(-28deg);
+  font-size: 86px;
+  color: rgba(220, 38, 38, 0.18);
   font-weight: 700;
-  letter-spacing: 10px;
+  letter-spacing: 6px;
   pointer-events: none;
-  z-index: 4;
+  z-index: 2;
   white-space: nowrap;
+  display: block;
 }
 
 .coa-print-wrapper img,

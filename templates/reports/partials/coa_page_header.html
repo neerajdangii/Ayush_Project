@@ -9,12 +9,6 @@
         <div class="coa-cert">Certificate No.: {{ report.certificate_no }}</div>
       </div>
     </div>
-    {% if report.final_outcome == 'draft' %}
-    <div class="coa-draft-note">
-      <strong>DRAFT{% if draft_remark_text %} REMARK:{% endif %}</strong>
-      {% if draft_remark_text %} {{ draft_remark_text|linebreaksbr }}{% endif %}
-    </div>
-    {% endif %}
     <table class="coa-meta-table">
       <colgroup>
         <col style="width:23%">
