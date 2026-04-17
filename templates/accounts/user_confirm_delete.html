@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Delete User | LIMS{% endblock %}
+{% block content %}
+<div class="card shadow-sm border-danger">
+  <div class="card-header bg-danger text-white">
+    <h5 class="mb-0">Delete User</h5>
+  </div>
+  <div class="card-body">
+    <p>
+      Are you sure you want to permanently delete user
+      <strong>{{ object.username }}</strong>?
+    </p>
+    <div class="alert alert-warning py-2">
+      If this user is used in bookings/reports, deletion may fail. In that case, edit the user and set <strong>Active = No</strong>.
+    </div>
+    <form method="post" class="d-flex gap-2">
+      {% csrf_token %}
+      <button class="btn btn-danger" type="submit">Yes, Delete</button>
+      <a class="btn btn-outline-secondary" href="{% url 'accounts:user_edit' object.pk %}">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
