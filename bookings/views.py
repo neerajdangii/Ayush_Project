@@ -153,7 +153,8 @@ class BookingCreateView(RoleRequiredMixin, PermissionRequiredMixin, CreateView):
 
 class BookingUpdateView(RoleRequiredMixin, PermissionRequiredMixin, UpdateView):
     permission_required = "bookings.change_booking"
-    required_roles = ("Analyst", "Admin", "Manager")
+    required_roles = ("Admin", "Manager")
+    allow_staff = False
     model = Booking
     form_class = BookingForm
     template_name = "bookings/booking_form.html"
