@@ -5,24 +5,26 @@
     {% endif %}
     <div class="coa-meta-bar">
       <div class="coa-meta-bar__right">
-        <div class="coa-page-info">Page <span class="coa-page-number">{% if is_continuation %}2{% else %}1{% endif %}</span></div>
+        <div class="coa-page-info">Page No. <span class="coa-page-number">{% if is_continuation %}2{% else %}1{% endif %}</span></div>
         <div class="coa-cert">Certificate No.: {{ report.certificate_no }}</div>
       </div>
     </div>
     <table class="coa-meta-table">
       <colgroup>
-        <col style="width:23%">
+        <col style="width:25%">
         <col style="width:16%">
         <col style="width:11%">
         <col style="width:15%">
-        <col style="width:22%">
-        <col style="width:26%">
+        <col style="width:24%">
+        <col style="width:23%">
       </colgroup>
       <tr>
         <th>Sample Submitted By</th>
         <td colspan="5" class="full-value">
           <div class="meta-primary">{{ report.booking.customer.name }}</div>
-          {% if report.booking.sample_location %}
+          {% if report.booking.customer.address %}
+          <div class="meta-secondary">{{ report.booking.customer.address|linebreaksbr }}</div>
+          {% elif report.booking.sample_location %}
           <div class="meta-secondary">{{ report.booking.sample_location|linebreaksbr }}</div>
           {% endif %}
         </td>

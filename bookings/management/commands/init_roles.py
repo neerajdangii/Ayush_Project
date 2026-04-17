@@ -8,7 +8,7 @@ class Command(BaseCommand):
         parser.add_argument("--username", help="Username to add to Analyst group", required=False)
 
     def handle(self, *args, **options):
-        roles = ["Admin", "Manager", "Incharge", "Analyst"]
+        roles = ["Admin", "Manager", "Incharge", "Analyst", "Checked By"]
         for role in roles:
             g, created = Group.objects.get_or_create(name=role)
             if created:

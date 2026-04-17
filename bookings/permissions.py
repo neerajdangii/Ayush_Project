@@ -9,10 +9,13 @@ def has_role(user, role_name: str) -> bool:
 
 class RoleRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     required_roles = ()
+    allow_staff = True
 
     def test_func(self):
         user = self.request.user
         if user.is_superuser:
+            return True
+        if self.allow_staff and user.is_staff:
             return True
         return any(has_role(user, role) for role in self.required_roles)
 

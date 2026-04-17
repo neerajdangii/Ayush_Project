@@ -83,35 +83,43 @@ class BookingForm(forms.ModelForm):
         ]
         widgets = {
             "booking_date": forms.DateTimeInput(
-                format=DATETIME_LOCAL_INPUT_FORMAT,
+                format=DATETIME_FORMAT_DMY,
                 attrs={
-                    "type": "datetime-local",
-                    "class": "form-control",
-                    "step": "60",
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATETIME_PLACEHOLDER,
+                    "data-picker-kind": "datetime",
+                    "autocomplete": "off",
                 },
             ),
             "letter_date": forms.DateTimeInput(
-                format=DATETIME_LOCAL_INPUT_FORMAT,
+                format=DATETIME_FORMAT_DMY,
                 attrs={
-                    "type": "datetime-local",
-                    "class": "form-control",
-                    "step": "60",
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATETIME_PLACEHOLDER,
+                    "data-picker-kind": "datetime",
+                    "autocomplete": "off",
                 },
             ),
             "sampling_upto": forms.DateTimeInput(
-                format=DATETIME_LOCAL_INPUT_FORMAT,
+                format=DATETIME_FORMAT_DMY,
                 attrs={
-                    "type": "datetime-local",
-                    "class": "form-control",
-                    "step": "60",
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATETIME_PLACEHOLDER,
+                    "data-picker-kind": "datetime",
+                    "autocomplete": "off",
                 },
             ),
             "sample_receipt_date": forms.DateTimeInput(
-                format=DATETIME_LOCAL_INPUT_FORMAT,
+                format=DATETIME_FORMAT_DMY,
                 attrs={
-                    "type": "datetime-local",
-                    "class": "form-control",
-                    "step": "60",
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATETIME_PLACEHOLDER,
+                    "data-picker-kind": "datetime",
+                    "autocomplete": "off",
                 },
             ),
             "customer": forms.Select(attrs={"class": "form-select"}),
@@ -130,36 +138,48 @@ class BookingForm(forms.ModelForm):
             "batch_no": forms.TextInput(attrs={"class": "form-control"}),
             "batch_size": forms.TextInput(attrs={"class": "form-control"}),
             "manufacture_date": forms.DateInput(
-                format=DATE_INPUT_FORMAT,
+                format=DATE_FORMAT_DMY,
                 attrs={
-                    "type": "date",
-                    "class": "form-control",
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATE_PLACEHOLDER,
+                    "data-picker-kind": "date",
+                    "data-close-on-pick": "1",
+                    "autocomplete": "off",
                 },
             ),
             "expiry_retest_date": forms.DateInput(
-                format=DATE_INPUT_FORMAT,
+                format=DATE_FORMAT_DMY,
                 attrs={
-                    "type": "date",
-                    "class": "form-control",
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATE_PLACEHOLDER,
+                    "data-picker-kind": "date",
+                    "data-close-on-pick": "1",
+                    "autocomplete": "off",
                 },
             ),
             "license_no": forms.TextInput(attrs={"class": "form-control"}),
             "collected_by_name": forms.TextInput(attrs={"class": "form-control"}),
             "sampling_procedure": forms.TextInput(attrs={"class": "form-control"}),
             "analysis_start_date": forms.DateTimeInput(
-                format=DATETIME_LOCAL_INPUT_FORMAT,
+                format=DATETIME_FORMAT_DMY,
                 attrs={
-                    "type": "datetime-local",
-                    "class": "form-control",
-                    "step": "60",
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATETIME_PLACEHOLDER,
+                    "data-picker-kind": "datetime",
+                    "autocomplete": "off",
                 },
             ),
             "analysis_end_date": forms.DateTimeInput(
-                format=DATETIME_LOCAL_INPUT_FORMAT,
+                format=DATETIME_FORMAT_DMY,
                 attrs={
-                    "type": "datetime-local",
-                    "class": "form-control",
-                    "step": "60",
+                    "type": "text",
+                    "class": "form-control booking-date-input",
+                    "placeholder": DATETIME_PLACEHOLDER,
+                    "data-picker-kind": "datetime",
+                    "autocomplete": "off",
                 },
             ),
             "remarks": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
@@ -186,21 +206,30 @@ class BookingForm(forms.ModelForm):
         for field_name in self.DATE_INPUT_FIELDS:
             self.fields[field_name].input_formats = [DATE_INPUT_FORMAT, DATE_FORMAT_DMY, DATETIME_FORMAT_DMY]
 
-        customer_queryset = CustomerMaster.objects.filter(is_active=True)
+        self.fields["sample_type"].choices = [("", "Select sample type")] + list(Booking.SampleType.choices)
+        self.fields["booking_type"].choices = [("", "Select booking type")] + list(Booking.BookingType.choices)
+        customer_queryset = CustomerMaster.objects.order_by("-is_active", "name")
         self.fields["customer"].queryset = customer_queryset
-        self.fields["customer"].widget = CustomerSelect(
+        customer_widget = CustomerSelect(
             attrs={"class": "form-select"},
             address_map={str(customer.pk): customer.address for customer in customer_queryset},
         )
-        self.fields["submitter"].queryset = SubmitterMaster.objects.filter(is_active=True)
-        self.fields["manufacturer"].queryset = ManufacturerMaster.objects.filter(is_active=True)
-        self.fields["sample_name"].queryset = SampleNameMaster.objects.filter(is_active=True)
-        self.fields["test_to_be_performed"].queryset = TestMaster.objects.filter(is_active=True)
-        self.fields["protocol"].queryset = ProtocolMaster.objects.filter(is_active=True)
-        self.fields["uom"].queryset = UOMMaster.objects.filter(is_active=True)
+        customer_widget.choices = self.fields["customer"].choices
+        self.fields["customer"].widget = customer_widget
+        self.fields["submitter"].queryset = SubmitterMaster.objects.order_by("-is_active", "name")
+        self.fields["manufacturer"].queryset = ManufacturerMaster.objects.order_by("-is_active", "name")
+        self.fields["sample_name"].queryset = SampleNameMaster.objects.order_by("-is_active", "name")
+        self.fields["test_to_be_performed"].queryset = TestMaster.objects.order_by("-is_active", "name")
+        self.fields["protocol"].queryset = ProtocolMaster.objects.order_by("-is_active", "name")
+        self.fields["uom"].queryset = UOMMaster.objects.order_by("-is_active", "name")
 
 
 class MasterForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "is_active" in self.fields and not self.instance.pk:
+            self.fields["is_active"].initial = True
+
     class Meta:
         fields = ["name", "is_active"]
         widgets = {

@@ -7,7 +7,7 @@ from django.dispatch import receiver
 @receiver(post_migrate)
 def ensure_default_roles(sender, **kwargs):
     # Ensure core role groups exist across environments.
-    for role in ("Admin", "Manager", "Incharge", "Analyst"):
+    for role in ("Admin", "Manager", "Incharge", "Analyst", "Checked By"):
         Group.objects.get_or_create(name=role)
 
     role_permissions = {
@@ -31,6 +31,12 @@ def ensure_default_roles(sender, **kwargs):
         },
         "Incharge": {
             "bookings.view_booking",
+            "reports.view_report",
+            "reports.change_report",
+        },
+        "Checked By": {
+            "bookings.view_booking",
+            "bookings.change_booking",
             "reports.view_report",
             "reports.change_report",
         },

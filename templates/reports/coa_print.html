@@ -43,7 +43,10 @@
   <div class="coa-tail-block coa-keep-together">
     <div class="coa-end-report">*** END OF REPORT ***</div>
     {% if report.remark_text %}
-    <div class="coa-remark">Remark: {{ report.remark_text|linebreaksbr }}</div>
+    <div class="coa-remark">
+      <div class="coa-remark__label">Remark:</div>
+      <div class="coa-remark__text">{{ report.remark_text|linebreaks }}</div>
+    </div>
     {% endif %}
   </div>
 </div>
@@ -59,7 +62,7 @@
 {% block extra_js %}
 {{ block.super }}
 {% if preview_mode %}
-<script src="{% static 'js/coa_paginate_v2.js' %}?v=20260410-1"></script>
+<script src="{% static 'js/coa_paginate_v2.js' %}?v=20260417-1"></script>
 <script>
 (function() {
   window.addEventListener('load', function() {

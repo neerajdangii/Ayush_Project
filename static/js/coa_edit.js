@@ -165,19 +165,131 @@
     }
 
     const remarkScript = document.getElementById('remark-options-data');
-    const remarkSelect = document.getElementById('id_selected_remark');
+    const remarkPicker = document.getElementById('id_remark_picker');
+    const remarkPickerWrap = document.getElementById('coaRemarkPicker');
+    const remarkDropdown = document.getElementById('coaRemarkDropdown');
+    const remarkOptionsList = document.getElementById('coaRemarkOptions');
+    const remarkSelect = document.getElementById('id_selected_remarks');
     const remarkTextarea = document.getElementById('id_remark_text');
-    if (remarkScript && remarkSelect && remarkTextarea) {
+    const hiddenRemarkSelect = document.getElementById('id_selected_remark');
+    if (remarkScript && remarkPicker && remarkPickerWrap && remarkDropdown && remarkOptionsList && remarkSelect && remarkTextarea) {
       try {
         const remarkOptions = JSON.parse(remarkScript.textContent);
-        remarkSelect.addEventListener('change', () => {
-          const selected = remarkOptions.find((opt) => String(opt.id) === remarkSelect.value);
-          if (selected) {
-            remarkTextarea.value = selected.content;
-          } else {
-            remarkTextarea.value = '';
+        const appendRemarkText = (content) => {
+          const nextContent = (content || '').trim();
+          if (!nextContent) {
+            return;
           }
+
+          const existingText = (remarkTextarea.value || '').trim();
+          const blocks = existingText ? existingText.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean) : [];
+          if (!blocks.includes(nextContent)) {
+            blocks.push(nextContent);
+          }
+          remarkTextarea.value = blocks.join('\n\n');
           remarkTextarea.dispatchEvent(new Event('input'));
+        };
+
+        const normalizeText = (value) => (value || '').trim().toLowerCase();
+
+        const getSelectedRemarkIds = () => Array.from(remarkSelect.selectedOptions).map((option) => String(option.value));
+
+        const openRemarkDropdown = () => {
+          remarkDropdown.classList.remove('d-none');
+        };
+
+        const closeRemarkDropdown = () => {
+          remarkDropdown.classList.add('d-none');
+        };
+
+        const renderRemarkOptions = (term) => {
+          const normalizedTerm = normalizeText(term);
+          const selectedIds = getSelectedRemarkIds();
+          const filtered = remarkOptions.filter((item) => {
+            const label = normalizeText(item.title || item.content || '');
+            return !normalizedTerm || label.includes(normalizedTerm);
+          });
+
+          remarkOptionsList.innerHTML = '';
+
+          if (!filtered.length) {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'coa-remark-picker__empty';
+            emptyState.textContent = 'No matching remarks found.';
+            remarkOptionsList.appendChild(emptyState);
+            return;
+          }
+
+          filtered.forEach((item) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'coa-remark-picker__option';
+            button.dataset.value = String(item.id);
+            button.textContent = (item.content || item.title || '').trim();
+            if (selectedIds.includes(String(item.id))) {
+              button.classList.add('is-selected');
+            }
+            remarkOptionsList.appendChild(button);
+          });
+        };
+
+        const selectRemark = (selectedValue) => {
+          const selected = remarkOptions.find((opt) => String(opt.id) === String(selectedValue));
+          if (!selected) {
+            return;
+          }
+
+          const hiddenOption = Array.from(remarkSelect.options).find((option) => String(option.value) === selectedValue);
+          if (hiddenOption) {
+            hiddenOption.selected = true;
+          }
+
+          const selectedValues = Array.from(remarkSelect.selectedOptions).map((option) => String(option.value));
+          if (hiddenRemarkSelect) {
+            hiddenRemarkSelect.value = selectedValues[0] || selectedValue;
+          }
+
+          appendRemarkText(selected.content);
+          remarkPicker.value = '';
+          renderRemarkOptions('');
+          closeRemarkDropdown();
+        };
+
+        renderRemarkOptions('');
+
+        remarkPicker.addEventListener('focus', () => {
+          renderRemarkOptions(remarkPicker.value);
+          openRemarkDropdown();
+        });
+
+        remarkPicker.addEventListener('click', () => {
+          renderRemarkOptions(remarkPicker.value);
+          openRemarkDropdown();
+        });
+
+        remarkPicker.addEventListener('input', () => {
+          renderRemarkOptions(remarkPicker.value);
+          openRemarkDropdown();
+        });
+
+        remarkPicker.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            closeRemarkDropdown();
+          }
+        });
+
+        remarkOptionsList.addEventListener('click', (event) => {
+          const optionButton = event.target.closest('.coa-remark-picker__option');
+          if (!optionButton) {
+            return;
+          }
+          selectRemark(optionButton.dataset.value);
+        });
+
+        document.addEventListener('click', (event) => {
+          if (!remarkPickerWrap.contains(event.target)) {
+            closeRemarkDropdown();
+          }
         });
       } catch (err) {
         console.error('Unable to parse remark list', err);

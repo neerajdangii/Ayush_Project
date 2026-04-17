@@ -26,7 +26,7 @@
           <div class="coa-signatures">
             <div class="coa-signature">
               <div class="coa-signature__stamp">
-                {% if not is_plain_doc and report.manager_signature and report.manager_signature != 'Digitally Signed' %}
+                {% if not is_plain_doc and report.manager_signature and "<img" in report.manager_signature %}
                   {{ report.manager_signature|safe }}
                 {% elif not is_plain_doc %}
                   <img src="{% static 'img/1029S_Mohit Barskar.webp' %}" alt="Manager signature">
@@ -45,7 +45,7 @@
             </div>
             <div class="coa-signature">
               <div class="coa-signature__stamp">
-                {% if not is_plain_doc and report.incharge_signature and report.incharge_signature != 'Digital Sign' %}
+                {% if not is_plain_doc and report.incharge_signature and "<img" in report.incharge_signature %}
                   {{ report.incharge_signature|safe }}
                 {% elif not is_plain_doc %}
                   <img src="{% static 'img/1041S_Alok Kumar Singh.png' %}" alt="Incharge signature">
@@ -107,7 +107,7 @@
           <div class="coa-signatures">
             <div class="coa-signature">
               <div class="coa-signature__stamp">
-                {% if not is_plain_doc and report.manager_signature and report.manager_signature != 'Digitally Signed' %}
+                {% if not is_plain_doc and report.manager_signature and "<img" in report.manager_signature %}
                   {{ report.manager_signature|safe }}
                 {% elif not is_plain_doc %}
                   <img src="{% static 'img/1029S_Mohit Barskar.webp' %}" alt="Manager signature">
@@ -126,7 +126,7 @@
             </div>
             <div class="coa-signature">
               <div class="coa-signature__stamp">
-                {% if not is_plain_doc and report.incharge_signature and report.incharge_signature != 'Digital Sign' %}
+                {% if not is_plain_doc and report.incharge_signature and "<img" in report.incharge_signature %}
                   {{ report.incharge_signature|safe }}
                 {% elif not is_plain_doc %}
                   <img src="{% static 'img/1041S_Alok Kumar Singh.png' %}" alt="Incharge signature">

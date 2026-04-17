@@ -5,6 +5,7 @@ import re
 
 from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
+from django.contrib.auth import get_user_model
 from django.http import Http404
 from django.http import JsonResponse
 from django.http import HttpResponseServerError
@@ -96,7 +97,7 @@ def _get_report_render_context(report, request, *, preview_mode, auto_print, is_
 
 class ReportListView(PermissionRequiredMixin, RoleRequiredMixin, ListView):
     permission_required = "reports.view_report"
-    required_roles = ("Manager", "Incharge", "Analyst")
+    required_roles = ("Checked By", "Manager", "Incharge", "Analyst")
     model = Report
     template_name = "reports/report_list.html"
     context_object_name = "reports"
@@ -145,7 +146,8 @@ class ReportListView(PermissionRequiredMixin, RoleRequiredMixin, ListView):
 
 class ReportCreateOrUpdateView(PermissionRequiredMixin, RoleRequiredMixin, UpdateView):
     permission_required = "reports.change_report"
-    required_roles = ("Manager", "Analyst", "Admin")
+    required_roles = ("Checked By",)
+    allow_staff = False
     model = Report
     form_class = ReportApprovalForm
     template_name = "reports/report_approval.html"
@@ -158,13 +160,21 @@ class ReportCreateOrUpdateView(PermissionRequiredMixin, RoleRequiredMixin, Updat
         return report
 
     def form_valid(self, form):
-        if not (self.request.user.is_superuser or has_role(self.request.user, "Manager")):
-            messages.error(self.request, "Only Manager can approve report workflow.")
+        if not (self.request.user.is_superuser or has_role(self.request.user, "Checked By")):
+            messages.error(self.request, "Only Checked By can approve report workflow.")
             return self.form_invalid(form)
 
         report = form.save(commit=False)
         analysis_start_date = form.cleaned_data.get("analysis_start_date")
         analysis_end_date = form.cleaned_data.get("analysis_end_date")
+        incharge_user = form.cleaned_data.get("incharge_user")
+        if not incharge_user:
+            UserModel = get_user_model()
+            incharge_user = (
+                UserModel.objects.filter(is_active=True, groups__name="Incharge")
+                .order_by("first_name", "last_name", "username")
+                .first()
+            )
 
         def _to_day_start(value):
             if not value:
@@ -180,14 +190,14 @@ class ReportCreateOrUpdateView(PermissionRequiredMixin, RoleRequiredMixin, Updat
         report.booking.save(update_fields=["analysis_start_date", "analysis_end_date"])
         report.analysis_end_date = analysis_end_date
         report.save(update_fields=["analysis_end_date", "updated_at"])
-        report.approve_by_manager(self.request.user)
-        messages.success(self.request, "Report approved by manager.")
+        report.approve_by_manager(self.request.user, incharge_user=incharge_user)
+        messages.success(self.request, "Report approved by Checked By.")
         return redirect("reports:coa_edit", pk=report.pk)
 
 
 class COAEditView(PermissionRequiredMixin, RoleRequiredMixin, UpdateView):
     permission_required = "reports.change_report"
-    required_roles = ("Manager", "Incharge", "Analyst")
+    required_roles = ("Checked By", "Manager", "Incharge", "Analyst")
     model = Report
     form_class = COAEditForm
     template_name = "reports/coa_edit.html"
@@ -249,7 +259,7 @@ class COAEditView(PermissionRequiredMixin, RoleRequiredMixin, UpdateView):
 
 class COAPrintView(PermissionRequiredMixin, RoleRequiredMixin, DetailView):
     permission_required = "reports.view_report"
-    required_roles = ("Manager", "Incharge", "Analyst")
+    required_roles = ("Checked By", "Manager", "Incharge", "Analyst")
     model = Report
     template_name = "reports/coa_print.html"
     context_object_name = "report"
@@ -270,7 +280,7 @@ class COAPrintView(PermissionRequiredMixin, RoleRequiredMixin, DetailView):
 
 class COAPlainDocumentView(PermissionRequiredMixin, RoleRequiredMixin, TemplateView):
     permission_required = "reports.view_report"
-    required_roles = ("Manager", "Incharge", "Analyst")
+    required_roles = ("Checked By", "Manager", "Incharge", "Analyst")
     template_name = "reports/coa_doc.html"
 
     def get_context_data(self, **kwargs):
@@ -287,7 +297,7 @@ class COAPlainDocumentView(PermissionRequiredMixin, RoleRequiredMixin, TemplateV
 
 class COAPDFView(PermissionRequiredMixin, RoleRequiredMixin, DetailView):
     permission_required = "reports.view_report"
-    required_roles = ("Manager", "Incharge", "Analyst")
+    required_roles = ("Checked By", "Manager", "Incharge", "Analyst")
     model = Report
     template_name = None
 
@@ -432,7 +442,7 @@ class ReportTemplateApiListView(PermissionRequiredMixin, RoleRequiredMixin, List
 @method_decorator(require_http_methods(["GET", "POST"]), name="dispatch")
 class ReportApiDetailView(PermissionRequiredMixin, RoleRequiredMixin, DetailView):
     permission_required = "reports.view_report"
-    required_roles = ("Manager", "Incharge", "Analyst")
+    required_roles = ("Checked By", "Manager", "Incharge", "Analyst")
     model = Report
 
     def get(self, request, *args, **kwargs):

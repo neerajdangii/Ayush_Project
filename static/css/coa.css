@@ -7,8 +7,22 @@
   --coa-plain-top: 42mm;
   --coa-screen-gutter: 12px;
   --coa-footer-reserve: 168px;
-  --coa-border: #1f2937;
+  --coa-border: #dde3eb;
+  --coa-meta-border: #000;
+  --coa-meta-border-width: 1.25px;
   --coa-font-sans: "Calibri", "Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande", sans-serif;
+}
+
+@media print {
+  :root {
+    --coa-border: #111;
+    --coa-meta-border: #000;
+  }
+
+  /* Physical letterhead prints slightly higher; push the first-page header down. */
+  .coa-plain:not(.coa-page-continuation) .coa-page-header {
+    margin-top: 4mm;
+  }
 }
 
 /* Page break markers - hidden when printing */ 
@@ -98,6 +112,9 @@ body.coa-standalone {
   box-sizing: border-box;
   overflow: hidden;
   position: relative;
+  /* Treat each wrapper as a single printed page; avoid fragmenting (which can split the footer). */
+  page-break-inside: avoid;
+  break-inside: avoid;
   page-break-after: always;
   break-after: page;
   box-shadow: 0 18px 60px rgba(15, 23, 42, 0.18);
@@ -254,10 +271,10 @@ body.coa-rendered-ok #coa-page-first {
   display: flex;
   justify-content: flex-end;
   align-items: flex-start;  
-  margin-top: 10px; 
+  margin-top: 2px; 
   width: 100%;
   margin-bottom: 4px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .coa-doc-head {
@@ -290,16 +307,18 @@ body.coa-rendered-ok #coa-page-first {
 }
 
 .coa-page-info {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
-  line-height: 1.25;
-  margin-bottom: 2px;
+  line-height: 1.15;
+  margin-bottom: 1px;
 }
 
 .coa-cert {
   letter-spacing: normal;
   font-weight: 500;
+  font-size: 14px;
 }
+
 
 .coa-meta-table {
   width: 100%;
@@ -307,14 +326,17 @@ body.coa-rendered-ok #coa-page-first {
   table-layout: fixed;
   font-size: 12px;
   line-height: 1.25;
-  margin-top: 10px; 
+  margin-top: 1px; 
   margin-bottom: 10px;
+  border: var(--coa-meta-border-width) solid var(--coa-meta-border);
 }
+
+
 
 .coa-meta-table th,
 .coa-meta-table td {
-  border: 1px solid #000;
-  padding: 2px 4px;
+  border: var(--coa-meta-border-width) solid var(--coa-meta-border);
+  padding: 3px 3px;
   vertical-align: top;
   text-align: left;
   word-break: break-word;
@@ -324,10 +346,12 @@ body.coa-rendered-ok #coa-page-first {
 
 .coa-meta-table th {
   font-weight: 700;
-  padding: 2px 4px;
+  padding: 5px 4px;
   white-space: normal;
   background-color: transparent;
 }
+
+
 
 .coa-meta-table th:nth-child(4) {
   padding-left: 8px;
@@ -339,7 +363,7 @@ body.coa-rendered-ok #coa-page-first {
 }
 
 .coa-meta-table .meta-secondary {
-  margin-top: 2px;
+  margin-top: 4px;
   font-size: 12px;
 }
 
@@ -349,9 +373,9 @@ body.coa-rendered-ok #coa-page-first {
 
 .coa-section-title {
   text-align: center;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
-  margin: 06px 0 08px;
+  margin: 04px 0 09px;
 }
 
 .coa-page-main {
@@ -414,7 +438,7 @@ body.coa-rendered-ok #coa-page-first {
 .coa-result table {
   width: 100% !important;
   border-collapse: collapse !important;
-  border: 1px solid #111 !important;
+  border: var(--coa-meta-border-width) solid var(--coa-meta-border) !important;
   table-layout: auto;
   font-size: 12px;
   line-height: 1.25;
@@ -449,7 +473,7 @@ body.coa-rendered-ok #coa-page-first {
 
 .coa-result th,
 .coa-result td {
-  border: 1px solid #111 !important;
+  border: var(--coa-meta-border-width) solid var(--coa-meta-border) !important;
   padding: 2px 3px !important;
   height: auto !important;
   min-height: 0 !important;
@@ -480,18 +504,18 @@ body.coa-rendered-ok #coa-page-first {
    so that when a table is split across pages, page 1 shows a clean closing line */
 .coa-result table tbody tr:last-child td,
 .coa-result table tbody tr:last-child th {
-  border-bottom: 1px solid #111 !important;
+  border-bottom: var(--coa-meta-border-width) solid var(--coa-meta-border) !important;
 }
 
 @media print {
   .coa-result table tbody tr td,
   .coa-result table tbody tr th {
-    border-bottom: 1px solid #111 !important;
+    border-bottom: var(--coa-meta-border-width) solid var(--coa-meta-border) !important;
   }
 
   .coa-result table tbody tr:last-child td,
   .coa-result table tbody tr:last-child th {
-    border-bottom: 1px solid #111 !important;
+    border-bottom: var(--coa-meta-border-width) solid var(--coa-meta-border) !important;
   }
 }
 
@@ -518,6 +542,27 @@ body.coa-rendered-ok #coa-page-first {
   text-align: left;
   break-inside: avoid;
   page-break-inside: avoid;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.coa-remark__label {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.coa-remark__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.coa-remark__text p {
+  margin: 0 0 2px;
+}
+
+.coa-remark__text p:last-child {
+  margin-bottom: 0;
 }
 
 .coa-tail-block {
@@ -790,6 +835,20 @@ body.coa-rendered-ok #coa-page-first {
     box-shadow: none;
     margin: 0;
     overflow: hidden;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* In print, avoid using table layout for pages; tables can be fragmented and split the footer strip. */
+  .coa-page-continuation {
+    display: block !important;
+  }
+
+  /* Extra safety: keep the footer and footer artwork together. */
+  .coa-page-footer,
+  .coa-page-brand--footer {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   .coa-result table {

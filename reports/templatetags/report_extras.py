@@ -8,6 +8,14 @@ from django.utils import timezone
 
 register = template.Library()
 
+@register.filter
+def has_role(user, role_name: str) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    return user.groups.filter(name=role_name).exists()
+
 
 @register.filter
 def date_or_datetime(value, arg="date"):

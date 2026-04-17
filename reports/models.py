@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.conf import settings
 from django.db import models
+from django.utils.html import escape
 
 from bookings.models import Booking, ProtocolMaster, SampleNameMaster
 
@@ -166,7 +167,17 @@ class Report(models.Model):
     def approve_by_manager(self, manager_user, incharge_user=None):
         self.manager = manager_user
         self.manager_name = manager_user.get_full_name() or manager_user.username
-        self.manager_signature = "Digitally Signed"
+        signature_url = None
+        profile = getattr(manager_user, "profile", None)
+        if profile and getattr(profile, "signature_file", None):
+            try:
+                signature_url = profile.signature_file.url
+            except Exception:
+                signature_url = None
+        if signature_url:
+            self.manager_signature = f'<img src="{escape(signature_url)}" alt="Checked by signature">'
+        else:
+            self.manager_signature = "Digitally Signed"
 
         self.incharge = incharge_user
 
@@ -174,7 +185,17 @@ class Report(models.Model):
             self.incharge_name = (
                 incharge_user.get_full_name() or incharge_user.username
             )
-            self.incharge_signature = "Digital Sign"
+            incharge_sig_url = None
+            profile = getattr(incharge_user, "profile", None)
+            if profile and getattr(profile, "signature_file", None):
+                try:
+                    incharge_sig_url = profile.signature_file.url
+                except Exception:
+                    incharge_sig_url = None
+            if incharge_sig_url:
+                self.incharge_signature = f'<img src="{escape(incharge_sig_url)}" alt="Incharge signature">'
+            else:
+                self.incharge_signature = "Digital Sign"
             self.status = self.Status.INCHARGE_APPROVED
         else:
             self.incharge_name = ""

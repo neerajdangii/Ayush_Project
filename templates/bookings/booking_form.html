@@ -2,8 +2,21 @@
 {% block title %}Booking Form | LIMS{% endblock %}
 {% block content %}
 <div class="booking-shell">
-  <form method="post" id="bookingForm" class="booking-layout">
+  <form method="post" id="bookingForm" class="booking-layout" novalidate>
     {% csrf_token %}
+    {% if form.errors %}
+    <div class="alert alert-danger">
+      Please fix the highlighted booking form errors and try again.
+      {{ form.non_field_errors }}
+      <ul class="mb-0 mt-2">
+        {% for field in form %}
+          {% for error in field.errors %}
+          <li>{{ field.label }}: {{ error }}</li>
+          {% endfor %}
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
 
     <div class="booking-panel">
       <div class="booking-toolbar">
@@ -48,7 +61,10 @@
           </div>
           <div class="booking-col">
             <label class="form-label">UOM <span class="required-mark">*</span></label>
-            {{ form.uom }}
+            <div class="input-group">
+              {{ form.uom }}
+              <button class="btn btn-outline-primary plus-master" type="button" data-slug="uom" data-target="id_uom">+</button>
+            </div>
           </div>
         </div>
 
@@ -171,9 +187,18 @@
         <div class="booking-test-panel__main booking-test-selector">
           <div class="booking-test-selector__controls">
             <div class="input-group">
-              <select id="bookingTestPicker" class="form-select">
-                <option value="">Select test to add</option>
-              </select>
+              <div class="booking-test-search" id="bookingTestSearch">
+                <input
+                  type="text"
+                  id="bookingTestPicker"
+                  class="form-control booking-test-search__input"
+                  placeholder="Type test name"
+                  autocomplete="off"
+                >
+                <div class="booking-test-search__dropdown d-none" id="bookingTestDropdown">
+                  <div class="booking-test-search__list" id="bookingTestOptions"></div>
+                </div>
+              </div>
               <button type="button" class="btn btn-outline-primary booking-test-selector__add-btn" id="bookingAddTestBtn" aria-label="Add selected test">+</button>
             </div>
           </div>
@@ -228,6 +253,7 @@
 <script>
 (function () {
   const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const bookingForm = document.getElementById('bookingForm');
   const modalElement = document.getElementById('inlineMasterModal');
   const modal = new bootstrap.Modal(modalElement);
   const nameInput = document.getElementById('inlineMasterName');
@@ -237,6 +263,7 @@
   const saveBtn = document.getElementById('inlineMasterSaveBtn');
   const customerSelect = document.getElementById('id_customer');
   const customerAddressPreview = document.getElementById('customerAddressPreview');
+  const searchableSelects = new Map();
   let current = { slug: '', targetId: '' };
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -255,6 +282,216 @@
     const address = selectedOption ? (selectedOption.dataset.address || '').trim() : '';
     customerAddressPreview.textContent = address;
     customerAddressPreview.style.display = address ? 'block' : 'none';
+  }
+
+  function getSingleSelectOptions(select) {
+    return Array.from(select.options)
+      .filter((option) => option.value)
+      .map((option) => ({
+        value: option.value,
+        label: option.textContent.trim(),
+      }));
+  }
+
+  function rankOptions(options, term) {
+    if (!term) {
+      return options;
+    }
+
+    const normalizedTerm = term.toLowerCase();
+    const startsWithMatches = [];
+    const containsMatches = [];
+
+    options.forEach((option) => {
+      const normalizedLabel = option.label.toLowerCase();
+      if (normalizedLabel.startsWith(normalizedTerm)) {
+        startsWithMatches.push(option);
+      } else if (normalizedLabel.includes(normalizedTerm)) {
+        containsMatches.push(option);
+      }
+    });
+
+    return startsWithMatches.concat(containsMatches);
+  }
+
+  function normalizeSearchableText(value) {
+    return (value || '').trim().toLowerCase();
+  }
+
+  function findMatchingSearchableOption(select, rawValue) {
+    const normalizedValue = normalizeSearchableText(rawValue);
+    if (!normalizedValue) {
+      return null;
+    }
+
+    const options = getSingleSelectOptions(select);
+    const exactMatch = options.find((option) => normalizeSearchableText(option.label) === normalizedValue);
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    const prefixMatches = options.filter((option) => normalizeSearchableText(option.label).startsWith(normalizedValue));
+    if (prefixMatches.length === 1) {
+      return prefixMatches[0];
+    }
+
+    return null;
+  }
+
+  function closeSearchableSelect(state) {
+    if (!state) {
+      return;
+    }
+    state.wrapper.classList.remove('is-open');
+    state.dropdown.classList.add('d-none');
+  }
+
+  function renderSearchableOptions(state, term) {
+    const options = rankOptions(getSingleSelectOptions(state.select), term.trim());
+    state.list.innerHTML = '';
+
+    if (!options.length) {
+      const emptyState = document.createElement('div');
+      emptyState.className = 'booking-searchable__empty';
+      emptyState.textContent = 'No matching records found.';
+      state.list.appendChild(emptyState);
+      return;
+    }
+
+    options.forEach((option) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'booking-searchable__option';
+      button.dataset.value = option.value;
+      button.textContent = option.label;
+      if (state.select.value === option.value) {
+        button.classList.add('is-selected');
+      }
+      state.list.appendChild(button);
+    });
+  }
+
+  function syncSearchableLabel(state) {
+    const selectedOption = state.select.options[state.select.selectedIndex];
+    state.input.value = selectedOption && selectedOption.value ? selectedOption.textContent.trim() : '';
+    renderSearchableOptions(state, state.input.value);
+  }
+
+  function selectSearchableOption(state, value, closeAfterSelect = true) {
+    const option = Array.from(state.select.options).find((item) => item.value === String(value));
+    if (!option) {
+      return;
+    }
+    state.select.value = option.value;
+    state.input.value = option.textContent.trim();
+    renderSearchableOptions(state, state.input.value);
+    state.select.dispatchEvent(new Event('change', { bubbles: true }));
+    if (closeAfterSelect) {
+      closeSearchableSelect(state);
+    }
+  }
+
+  function openSearchableSelect(state) {
+    if (!state) {
+      return;
+    }
+    searchableSelects.forEach((item) => {
+      if (item !== state) {
+        closeSearchableSelect(item);
+      }
+    });
+    renderSearchableOptions(state, state.input.value);
+    state.wrapper.classList.add('is-open');
+    state.dropdown.classList.remove('d-none');
+  }
+
+  function resolveSearchableSelection(state) {
+    if (!state) {
+      return false;
+    }
+
+    const matchedOption = findMatchingSearchableOption(state.select, state.input.value);
+    if (matchedOption) {
+      selectSearchableOption(state, matchedOption.value, false);
+      return true;
+    }
+
+    return false;
+  }
+
+  function setupSearchableSelect(select, placeholder) {
+    if (!select || select.multiple || searchableSelects.has(select.id)) {
+      return;
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'booking-searchable';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control booking-searchable__input';
+    input.placeholder = placeholder;
+    input.autocomplete = 'off';
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'booking-searchable__dropdown d-none';
+    const list = document.createElement('div');
+    list.className = 'booking-searchable__list';
+    dropdown.appendChild(list);
+
+    select.parentNode.insertBefore(wrapper, select);
+    wrapper.appendChild(input);
+    wrapper.appendChild(dropdown);
+    wrapper.appendChild(select);
+    select.classList.add('booking-searchable__native');
+
+    const state = { select, wrapper, input, dropdown, list };
+    searchableSelects.set(select.id, state);
+    syncSearchableLabel(state);
+
+    input.addEventListener('focus', () => {
+      openSearchableSelect(state);
+    });
+
+    input.addEventListener('click', () => {
+      openSearchableSelect(state);
+    });
+
+    input.addEventListener('input', () => {
+      if (!state.wrapper.classList.contains('is-open')) {
+        openSearchableSelect(state);
+      }
+      renderSearchableOptions(state, input.value);
+    });
+
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        const firstOption = state.list.querySelector('.booking-searchable__option');
+        if (firstOption) {
+          event.preventDefault();
+          selectSearchableOption(state, firstOption.dataset.value);
+        }
+      } else if (event.key === 'Escape') {
+        closeSearchableSelect(state);
+      }
+    });
+
+    input.addEventListener('blur', () => {
+      window.setTimeout(() => {
+        resolveSearchableSelection(state);
+      }, 100);
+    });
+
+    list.addEventListener('click', (event) => {
+      const optionButton = event.target.closest('.booking-searchable__option');
+      if (!optionButton) {
+        return;
+      }
+      selectSearchableOption(state, optionButton.dataset.value);
+    });
+
+    select.addEventListener('change', () => {
+      syncSearchableLabel(state);
+    });
   }
 
   function formatDate(date) {
@@ -341,7 +578,10 @@
   datepicker.innerHTML = `
     <div class="booking-datepicker__header">
       <button type="button" class="booking-datepicker__nav" data-nav="-1" aria-label="Previous month">&lsaquo;</button>
-      <div class="booking-datepicker__title"></div>
+      <div class="booking-datepicker__title">
+        <select id="bookingDatepickerMonth" class="form-select" aria-label="Month"></select>
+        <select id="bookingDatepickerYear" class="form-select" aria-label="Year"></select>
+      </div>
       <button type="button" class="booking-datepicker__nav" data-nav="1" aria-label="Next month">&rsaquo;</button>
     </div>
     <div class="booking-datepicker__weekdays"></div>
@@ -372,7 +612,8 @@
   `;
   document.body.appendChild(datepicker);
 
-  const datepickerTitle = datepicker.querySelector('.booking-datepicker__title');
+  const monthSelect = datepicker.querySelector('#bookingDatepickerMonth');
+  const yearSelect = datepicker.querySelector('#bookingDatepickerYear');
   const datepickerWeekdays = datepicker.querySelector('.booking-datepicker__weekdays');
   const datepickerGrid = datepicker.querySelector('.booking-datepicker__grid');
   const datepickerTime = datepicker.querySelector('.booking-datepicker__time');
@@ -400,6 +641,27 @@
     option.textContent = String(minute).padStart(2, '0');
     minuteSelect.appendChild(option);
   }
+
+  monthNames.forEach((name, index) => {
+    const option = document.createElement('option');
+    option.value = String(index);
+    option.textContent = name;
+    monthSelect.appendChild(option);
+  });
+
+  function populateYearOptions(centerYear) {
+    const startYear = 1950;
+    const endYear = Math.max(2100, (centerYear || new Date().getFullYear()) + 20);
+    yearSelect.innerHTML = '';
+    for (let year = startYear; year <= endYear; year += 1) {
+      const option = document.createElement('option');
+      option.value = String(year);
+      option.textContent = String(year);
+      yearSelect.appendChild(option);
+    }
+  }
+
+  populateYearOptions(new Date().getFullYear());
 
   function syncTimeSelectors(date) {
     const hour24 = date.getHours();
@@ -473,7 +735,13 @@
     const firstWeekday = firstOfMonth.getDay();
     const firstVisibleDay = new Date(year, monthIndex, 1 - firstWeekday);
 
-    datepickerTitle.textContent = `${monthNames[monthIndex]} ${year}`;
+    if (Number(yearSelect.value) !== year) {
+      if (!Array.from(yearSelect.options).some((o) => Number(o.value) === year)) {
+        populateYearOptions(year);
+      }
+      yearSelect.value = String(year);
+    }
+    monthSelect.value = String(monthIndex);
     datepickerGrid.innerHTML = '';
 
     for (let index = 0; index < 42; index += 1) {
@@ -513,6 +781,9 @@
     const baseDate = parsed || new Date();
     selectedPickerDate = new Date(baseDate);
     viewDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+    if (!Array.from(yearSelect.options).some((o) => Number(o.value) === baseDate.getFullYear())) {
+      populateYearOptions(baseDate.getFullYear());
+    }
     datepicker.classList.remove('is-hidden');
     renderDatepicker();
     requestAnimationFrame(() => {
@@ -571,6 +842,7 @@
         if (activeDateInput.dataset.closeOnPick === '1' || activeDateInput.dataset.pickerKind === 'date') {
           commitSelectedPickerDate(true);
         } else if (activeDateInput.dataset.pickerKind === 'datetime') {
+          commitSelectedPickerDate(false);
           renderDatepicker();
         } else {
           commitSelectedPickerDate(true);
@@ -607,6 +879,21 @@
     });
   });
 
+  [monthSelect, yearSelect].forEach((select) => {
+    select.addEventListener('change', () => {
+      if (!activeDateInput || !viewDate) {
+        return;
+      }
+      const nextYear = Number(yearSelect.value) || viewDate.getFullYear();
+      const nextMonth = Number(monthSelect.value);
+      viewDate = new Date(nextYear, nextMonth, 1);
+      renderDatepicker();
+      if (activeDateInput) {
+        positionDatepicker(activeDateInput.closest('.booking-date-field') || activeDateInput);
+      }
+    });
+  });
+
   document.addEventListener('click', (event) => {
     if (
       datepicker.classList.contains('is-hidden') ||
@@ -638,8 +925,19 @@
 
   const testsSelect = document.getElementById('id_test_to_be_performed');
   const testPicker = document.getElementById('bookingTestPicker');
+  const testSearch = document.getElementById('bookingTestSearch');
+  const testDropdown = document.getElementById('bookingTestDropdown');
+  const testOptionsList = document.getElementById('bookingTestOptions');
   const addTestButton = document.getElementById('bookingAddTestBtn');
   const selectedTestsContainer = document.getElementById('bookingSelectedTests');
+  let pendingTestValue = '';
+
+  setupSearchableSelect(document.getElementById('id_sample_name'), 'Type sample name');
+  setupSearchableSelect(document.getElementById('id_protocol'), 'Type protocol name');
+  setupSearchableSelect(document.getElementById('id_uom'), 'Type UOM');
+  setupSearchableSelect(customerSelect, 'Type customer name');
+  setupSearchableSelect(document.getElementById('id_submitter'), 'Type submitter name');
+  setupSearchableSelect(document.getElementById('id_manufacturer'), 'Type manufacturer name');
 
   function getSelectedTests() {
     if (!testsSelect) {
@@ -648,21 +946,77 @@
     return Array.from(testsSelect.options).filter((option) => option.selected);
   }
 
-  function syncTestPickerOptions() {
-    if (!testsSelect || !testPicker) {
+  function getAvailableTests() {
+    if (!testsSelect) {
+      return [];
+    }
+    return Array.from(testsSelect.options)
+      .filter((option) => option.value && !option.selected)
+      .map((option) => ({
+        value: option.value,
+        label: option.textContent.trim(),
+      }));
+  }
+
+  function closeTestDropdown() {
+    if (!testDropdown) {
       return;
     }
-    const currentValue = testPicker.value;
-    testPicker.innerHTML = '<option value="">Select test to add</option>';
-    Array.from(testsSelect.options)
-      .filter((option) => !option.selected)
-      .forEach((option) => {
-        const pickerOption = new Option(option.textContent, option.value);
-        testPicker.add(pickerOption);
-      });
-    if (Array.from(testPicker.options).some((option) => option.value === currentValue)) {
-      testPicker.value = currentValue;
+    testDropdown.classList.add('d-none');
+  }
+
+  function openTestDropdown() {
+    if (!testDropdown) {
+      return;
     }
+    testDropdown.classList.remove('d-none');
+  }
+
+  function renderTestPickerOptions(term) {
+    if (!testOptionsList) {
+      return;
+    }
+
+    const options = rankOptions(getAvailableTests(), (term || '').trim());
+    testOptionsList.innerHTML = '';
+
+    if (!options.length) {
+      const emptyState = document.createElement('div');
+      emptyState.className = 'booking-test-search__empty';
+      emptyState.textContent = 'No matching records found.';
+      testOptionsList.appendChild(emptyState);
+      pendingTestValue = '';
+      if (addTestButton) {
+        addTestButton.disabled = true;
+      }
+      return;
+    }
+
+    options.forEach((option) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'booking-test-search__option';
+      button.dataset.value = option.value;
+      button.textContent = option.label;
+      if (option.value === pendingTestValue) {
+        button.classList.add('is-selected');
+      }
+      testOptionsList.appendChild(button);
+    });
+  }
+
+  function resolvePendingTestSelection() {
+    const matchedOption = findMatchingSearchableOption(testsSelect, testPicker ? testPicker.value : '');
+    pendingTestValue = matchedOption && !Array.from(testsSelect.options).find(
+      (option) => option.value === matchedOption.value && option.selected
+    )
+      ? matchedOption.value
+      : '';
+
+    if (addTestButton) {
+      addTestButton.disabled = !pendingTestValue;
+    }
+    renderTestPickerOptions(testPicker ? testPicker.value : '');
   }
 
   function renderSelectedTests() {
@@ -678,7 +1032,7 @@
       emptyState.className = 'booking-test-selector__empty';
       emptyState.textContent = 'No tests selected yet. Use the dropdown or + button to add tests.';
       selectedTestsContainer.appendChild(emptyState);
-      syncTestPickerOptions();
+      resolvePendingTestSelection();
       return;
     }
 
@@ -704,15 +1058,16 @@
       selectedTestsContainer.appendChild(row);
     });
 
-    syncTestPickerOptions();
+    resolvePendingTestSelection();
   }
 
   if (testPicker && testsSelect) {
-    syncTestPickerOptions();
+    resolvePendingTestSelection();
     renderSelectedTests();
 
     function addSelectedTestFromPicker() {
-      const selectedValue = testPicker.value;
+      resolvePendingTestSelection();
+      const selectedValue = pendingTestValue;
       if (!selectedValue) {
         return false;
       }
@@ -722,20 +1077,64 @@
         renderSelectedTests();
       }
       testPicker.value = '';
+      pendingTestValue = '';
+      closeTestDropdown();
+      resolvePendingTestSelection();
       return !!option;
     }
 
-    testPicker.addEventListener('change', () => {
-      if (addTestButton) {
-        addTestButton.disabled = !testPicker.value;
+    testPicker.addEventListener('focus', () => {
+      renderTestPickerOptions(testPicker.value);
+      openTestDropdown();
+    });
+
+    testPicker.addEventListener('click', () => {
+      renderTestPickerOptions(testPicker.value);
+      openTestDropdown();
+    });
+
+    testPicker.addEventListener('input', () => {
+      resolvePendingTestSelection();
+      openTestDropdown();
+    });
+
+    testPicker.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addSelectedTestFromPicker();
+      } else if (event.key === 'Escape') {
+        closeTestDropdown();
       }
     });
 
+    testPicker.addEventListener('blur', () => {
+      window.setTimeout(() => {
+        resolvePendingTestSelection();
+      }, 100);
+    });
+
     if (addTestButton) {
-      addTestButton.disabled = true;
+      addTestButton.disabled = !pendingTestValue;
       addTestButton.addEventListener('click', () => {
         addSelectedTestFromPicker();
-        addTestButton.disabled = !testPicker.value;
+      });
+    }
+
+    if (testOptionsList) {
+      testOptionsList.addEventListener('click', (event) => {
+        const optionButton = event.target.closest('.booking-test-search__option');
+        if (!optionButton) {
+          return;
+        }
+        pendingTestValue = optionButton.dataset.value;
+        const option = Array.from(testsSelect.options).find((item) => item.value === pendingTestValue);
+        if (option) {
+          testPicker.value = option.textContent.trim();
+        }
+        if (addTestButton) {
+          addTestButton.disabled = false;
+        }
+        addSelectedTestFromPicker();
       });
     }
 
@@ -748,9 +1147,6 @@
       if (option) {
         option.selected = false;
         renderSelectedTests();
-        if (addTestButton) {
-          addTestButton.disabled = !testPicker.value;
-        }
       }
     });
   }
@@ -808,12 +1204,15 @@
       option.selected = true;
       if (target === testsSelect) {
         renderSelectedTests();
-        if (addTestButton) {
-          addTestButton.disabled = !testPicker.value;
-        }
+        resolvePendingTestSelection();
       }
     } else {
       target.value = data.id;
+      const searchableState = searchableSelects.get(target.id);
+      if (searchableState) {
+        syncSearchableLabel(searchableState);
+      }
+      target.dispatchEvent(new Event('change', { bubbles: true }));
       if (target === customerSelect) {
         updateCustomerAddressPreview();
       }
@@ -825,6 +1224,28 @@
     customerSelect.addEventListener('change', updateCustomerAddressPreview);
     updateCustomerAddressPreview();
   }
+
+  document.addEventListener('click', (event) => {
+    searchableSelects.forEach((state) => {
+      if (!state.wrapper.contains(event.target)) {
+        resolveSearchableSelection(state);
+        closeSearchableSelect(state);
+      }
+    });
+
+    if (testSearch && !testSearch.contains(event.target)) {
+      closeTestDropdown();
+    }
+  });
+
+  if (bookingForm) {
+    bookingForm.addEventListener('submit', () => {
+      searchableSelects.forEach((state) => {
+        resolveSearchableSelection(state);
+        syncSearchableLabel(state);
+      });
+    });
+  }
 })();
 </script>
 <style>
@@ -832,6 +1253,110 @@
     margin-top: 6px;
     white-space: pre-line;
     color: #475569;
+  }
+
+  .booking-searchable {
+    position: relative;
+    flex: 1 1 auto;
+  }
+
+  .booking-searchable__native {
+    display: none;
+  }
+
+  .booking-searchable__dropdown {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    z-index: 25;
+    background: #fff;
+    border: 1px solid #cfd4da;
+    border-radius: 2px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  }
+
+  .booking-searchable__list {
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .booking-searchable__option,
+  .booking-searchable__empty {
+    width: 100%;
+    padding: 7px 8px;
+    font-size: 12px;
+    text-align: left;
+  }
+
+  .booking-searchable__option {
+    border: 0;
+    border-bottom: 1px solid #eef2f7;
+    background: #fff;
+    cursor: pointer;
+  }
+
+  .booking-searchable__option:hover,
+  .booking-searchable__option:focus,
+  .booking-searchable__option.is-selected {
+    background: #eff6ff;
+    color: #1d4ed8;
+    outline: none;
+  }
+
+  .booking-searchable__empty {
+    color: #64748b;
+    background: #f8fafc;
+  }
+
+  .booking-test-search {
+    position: relative;
+    flex: 1 1 auto;
+  }
+
+  .booking-test-search__dropdown {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    z-index: 30;
+    background: #fff;
+    border: 1px solid #cfd4da;
+    border-radius: 2px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  }
+
+  .booking-test-search__list {
+    max-height: 280px;
+    overflow-y: auto;
+  }
+
+  .booking-test-search__option,
+  .booking-test-search__empty {
+    width: 100%;
+    padding: 7px 8px;
+    font-size: 12px;
+    text-align: left;
+  }
+
+  .booking-test-search__option {
+    border: 0;
+    border-bottom: 1px solid #eef2f7;
+    background: #fff;
+    cursor: pointer;
+  }
+
+  .booking-test-search__option:hover,
+  .booking-test-search__option:focus,
+  .booking-test-search__option.is-selected {
+    background: #eff6ff;
+    color: #1d4ed8;
+    outline: none;
+  }
+
+  .booking-test-search__empty {
+    color: #64748b;
+    background: #f8fafc;
   }
 </style>
 {% endblock %}

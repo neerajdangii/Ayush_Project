@@ -10,8 +10,12 @@
       <strong>Booking:</strong> {{ object.booking.sample_name.name }} | {{ object.booking.customer.name }}
     </div>
 
-    <form method="post" class="row g-3">
+    <form method="post" class="row g-3" novalidate>
       {% csrf_token %}
+      <div class="col-md-4">
+        <label class="form-label" for="id_incharge_user">Person In-charge of Testing</label>
+        {{ form.incharge_user }}
+      </div>
       <div class="col-md-4">
         <label class="form-label">Analysis start Date</label>
         {{ form.analysis_start_date }}
@@ -26,4 +30,243 @@
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const weekdayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  let activeDateInput = null;
+  let viewDate = null;
+  let selectedPickerDate = null;
+
+  function formatDate(date) {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  function parseDate(value) {
+    const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((value || '').trim());
+    if (!match) {
+      return null;
+    }
+    const day = Number(match[1]);
+    const monthIndex = Number(match[2]) - 1;
+    const year = Number(match[3]);
+    const date = new Date(year, monthIndex, day);
+    if (
+      date.getFullYear() !== year ||
+      date.getMonth() !== monthIndex ||
+      date.getDate() !== day
+    ) {
+      return null;
+    }
+    return date;
+  }
+
+  function isSameDate(first, second) {
+    return first &&
+      second &&
+      first.getFullYear() === second.getFullYear() &&
+      first.getMonth() === second.getMonth() &&
+      first.getDate() === second.getDate();
+  }
+
+  const datepicker = document.createElement('div');
+  datepicker.className = 'booking-datepicker is-hidden';
+  datepicker.innerHTML = `
+    <div class="booking-datepicker__header">
+      <button type="button" class="booking-datepicker__nav" data-nav="-1" aria-label="Previous month">&lsaquo;</button>
+      <div class="booking-datepicker__title"></div>
+      <button type="button" class="booking-datepicker__nav" data-nav="1" aria-label="Next month">&rsaquo;</button>
+    </div>
+    <div class="booking-datepicker__weekdays"></div>
+    <div class="booking-datepicker__grid"></div>
+  `;
+  document.body.appendChild(datepicker);
+
+  const datepickerTitle = datepicker.querySelector('.booking-datepicker__title');
+  const datepickerWeekdays = datepicker.querySelector('.booking-datepicker__weekdays');
+  const datepickerGrid = datepicker.querySelector('.booking-datepicker__grid');
+
+  weekdayNames.forEach((name) => {
+    const weekday = document.createElement('div');
+    weekday.className = 'booking-datepicker__weekday';
+    weekday.textContent = name;
+    datepickerWeekdays.appendChild(weekday);
+  });
+
+  function closeDatepicker() {
+    datepicker.classList.add('is-hidden');
+    activeDateInput = null;
+    selectedPickerDate = null;
+  }
+
+  function positionDatepicker(wrapper) {
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const popupWidth = datepicker.offsetWidth || 280;
+    const popupHeight = datepicker.offsetHeight || 320;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const gap = 8;
+    const left = Math.min(
+      Math.max(12, wrapperRect.left),
+      viewportWidth - popupWidth - 12
+    );
+    let top = wrapperRect.bottom + gap;
+
+    if (top + popupHeight > viewportHeight - 12) {
+      top = wrapperRect.top - popupHeight - gap;
+    }
+
+    if (top < 12) {
+      top = Math.max(12, viewportHeight - popupHeight - 12);
+    }
+
+    datepicker.style.left = `${left}px`;
+    datepicker.style.top = `${top}px`;
+  }
+
+  function renderDatepicker() {
+    if (!activeDateInput || !viewDate || !selectedPickerDate) {
+      return;
+    }
+
+    const selectedDate = selectedPickerDate;
+    const today = new Date();
+    const year = viewDate.getFullYear();
+    const monthIndex = viewDate.getMonth();
+    const firstOfMonth = new Date(year, monthIndex, 1);
+    const firstWeekday = firstOfMonth.getDay();
+    const firstVisibleDay = new Date(year, monthIndex, 1 - firstWeekday);
+
+    datepickerTitle.textContent = `${monthNames[monthIndex]} ${year}`;
+    datepickerGrid.innerHTML = '';
+
+    for (let index = 0; index < 42; index += 1) {
+      const cellDate = new Date(firstVisibleDay);
+      cellDate.setDate(firstVisibleDay.getDate() + index);
+
+      const dayButton = document.createElement('button');
+      dayButton.type = 'button';
+      dayButton.className = 'booking-datepicker__day';
+      dayButton.textContent = String(cellDate.getDate());
+      dayButton.dataset.value = formatDate(cellDate);
+
+      if (cellDate.getMonth() !== monthIndex) {
+        dayButton.classList.add('is-outside');
+      }
+      if (isSameDate(cellDate, today)) {
+        dayButton.classList.add('is-today');
+      }
+      if (isSameDate(cellDate, selectedDate)) {
+        dayButton.classList.add('is-selected');
+      }
+
+      datepickerGrid.appendChild(dayButton);
+    }
+  }
+
+  function openDatepicker(input) {
+    activeDateInput = input;
+    const parsed = parseDate(input.value);
+    const baseDate = parsed || new Date();
+    selectedPickerDate = new Date(baseDate);
+    viewDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+    datepicker.classList.remove('is-hidden');
+    renderDatepicker();
+    requestAnimationFrame(() => {
+      if (!activeDateInput) {
+        return;
+      }
+      positionDatepicker(input.closest('.booking-date-field') || input);
+    });
+  }
+
+  document.querySelectorAll('.booking-date-input').forEach((input) => {
+    if (input.parentElement && input.parentElement.classList.contains('booking-date-field')) {
+      return;
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'booking-date-field';
+    input.parentNode.insertBefore(wrapper, input);
+    wrapper.appendChild(input);
+
+    wrapper.addEventListener('click', () => {
+      openDatepicker(input);
+    });
+
+    input.addEventListener('focus', () => {
+      openDatepicker(input);
+    });
+
+    input.addEventListener('click', () => {
+      openDatepicker(input);
+    });
+  });
+
+  datepicker.addEventListener('click', (event) => {
+    const navButton = event.target.closest('[data-nav]');
+    if (navButton) {
+      viewDate.setMonth(viewDate.getMonth() + Number(navButton.dataset.nav));
+      renderDatepicker();
+      if (activeDateInput) {
+        positionDatepicker(activeDateInput.closest('.booking-date-field') || activeDateInput);
+      }
+      return;
+    }
+
+    const dayButton = event.target.closest('.booking-datepicker__day');
+    if (!dayButton || !activeDateInput) {
+      return;
+    }
+
+    const chosenDate = parseDate(dayButton.dataset.value);
+    if (!chosenDate) {
+      return;
+    }
+
+    selectedPickerDate = chosenDate;
+    activeDateInput.value = formatDate(chosenDate);
+    activeDateInput.dispatchEvent(new Event('change', { bubbles: true }));
+    closeDatepicker();
+  });
+
+  document.addEventListener('click', (event) => {
+    if (
+      datepicker.classList.contains('is-hidden') ||
+      datepicker.contains(event.target) ||
+      event.target.closest('.booking-date-field')
+    ) {
+      return;
+    }
+    closeDatepicker();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeDatepicker();
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if (activeDateInput) {
+      positionDatepicker(activeDateInput.closest('.booking-date-field') || activeDateInput);
+    }
+  });
+
+  window.addEventListener('scroll', () => {
+    if (activeDateInput) {
+      positionDatepicker(activeDateInput.closest('.booking-date-field') || activeDateInput);
+    }
+  }, true);
+})();
+</script>
 {% endblock %}

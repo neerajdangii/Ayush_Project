@@ -71,12 +71,12 @@
           <td>{{ r.manager_name|default:'-' }}</td>
           <td>
             <div class="d-flex flex-wrap gap-2">
-              <a class="btn btn-sm btn-outline-primary" href="{% url 'reports:coa_print' r.pk %}" target="_blank">COA</a>
-              <a class="btn btn-sm btn-outline-success" href="{% url 'reports:coa_print' r.pk %}?plain=1" target="_blank">COA Plain</a>
-              <a class="btn btn-sm btn-outline-info" href="{% url 'reports:coa_print' r.pk %}?doc=test" target="_blank">Test Report</a>
-              <a class="btn btn-sm btn-outline-warning" href="{% url 'reports:coa_print' r.pk %}?doc=test&plain=1" target="_blank">Test Report Plain</a>
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'reports:coa_print' r.pk %}">COA</a>
+              <a class="btn btn-sm btn-outline-success" href="{% url 'reports:coa_print' r.pk %}?plain=1">COA Plain</a>
+              <a class="btn btn-sm btn-outline-info" href="{% url 'reports:coa_print' r.pk %}?doc=test">Test Report</a>
+              <a class="btn btn-sm btn-outline-warning" href="{% url 'reports:coa_print' r.pk %}?doc=test&plain=1">Test Report Plain</a>
               <a class="btn btn-sm btn-primary" href="{% url 'reports:coa_edit' r.pk %}">Edit</a>
-              <a class="btn btn-sm btn-outline-dark" href="{% url 'reports:coa_print' r.pk %}" target="_blank">View</a>
+              <a class="btn btn-sm btn-outline-dark" href="{% url 'reports:coa_print' r.pk %}">View</a>
             </div>
           </td>
         </tr>

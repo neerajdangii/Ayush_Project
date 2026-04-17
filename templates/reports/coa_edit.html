@@ -37,8 +37,8 @@
   </div>
 
   <div class="nav">
-    <a href="{% url 'reports:coa_print' object.pk %}?autoprint=1" target="_blank">Print A4</a>
-    <a href="{% url 'reports:coa_doc' object.pk %}" target="_blank">Word View</a>
+    <a href="{% url 'reports:coa_print' object.pk %}?autoprint=1">Print A4</a>
+    <a href="{% url 'reports:coa_doc' object.pk %}">Word View</a>
   </div>
 </div>
 
@@ -86,7 +86,7 @@
         </div>
         <div class="coa-meta-field d-flex align-items-end gap-2">
           <button class="btn btn-outline-primary" type="button" id="apply-report-template">Load Template</button>
-          <a class="btn btn-outline-secondary" href="{% url 'reports:template_list' %}" target="_blank">Manage Templates</a>
+          <a class="btn btn-outline-secondary" href="{% url 'reports:template_list' %}">Manage Templates</a>
         </div>
       </div>
       <div class="coa-meta-row">
@@ -130,8 +130,22 @@
       </div>
       <div class="coa-meta-row">
         <div class="coa-meta-field">
-          <label for="id_selected_remark">Select Remark</label>
+          <label for="id_remark_picker">Select Remark</label>
+          <div class="coa-remark-picker" id="coaRemarkPicker">
+            <input
+              type="text"
+              class="form-control"
+              id="id_remark_picker"
+              placeholder="Select Remark"
+              autocomplete="off"
+            >
+            <div class="coa-remark-picker__dropdown d-none" id="coaRemarkDropdown">
+              <div class="coa-remark-picker__list" id="coaRemarkOptions"></div>
+            </div>
+          </div>
+          {{ form.selected_remarks }}
           {{ form.selected_remark }}
+          <small>Type to search remarks, then click one to add it into the Remarks box.</small>
         </div>
         <div class="coa-meta-field remarks-textarea">
           <label for="id_remark_text">Remarks</label>
@@ -157,6 +171,57 @@
 {{ old_report_options|json_script:"old-report-options-data" }}
 <script id="report-api-detail-url" type="application/json">"{% url 'reports:report_api_detail' 0 %}"</script>
 
-<script src="{% static 'js/coa_edit.js' %}?v=20260407-1"></script>
+<script src="{% static 'js/coa_edit.js' %}?v=20260416-2"></script>
+
+<style>
+  .coa-remark-picker {
+    position: relative;
+  }
+
+  .coa-remark-picker__dropdown {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    z-index: 40;
+    background: #fff;
+    border: 1px solid #cfd4da;
+    border-radius: 4px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  }
+
+  .coa-remark-picker__list {
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .coa-remark-picker__option,
+  .coa-remark-picker__empty {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    text-align: left;
+  }
+
+  .coa-remark-picker__option {
+    border: 0;
+    border-bottom: 1px solid #eef2f7;
+    background: #fff;
+    cursor: pointer;
+  }
+
+  .coa-remark-picker__option:hover,
+  .coa-remark-picker__option:focus,
+  .coa-remark-picker__option.is-selected {
+    background: #e8f0fe;
+    color: #1d4ed8;
+    outline: none;
+  }
+
+  .coa-remark-picker__empty {
+    color: #64748b;
+    background: #f8fafc;
+  }
+</style>
 
 {% endblock %}

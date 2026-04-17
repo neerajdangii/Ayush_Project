@@ -60,7 +60,7 @@ MASTER_CONFIG = {
         "detail_attr": "content",
     },
 }
-INLINE_ALLOWED_MASTERS = {"customer", "submitter", "manufacturer", "sample-name", "test"}
+INLINE_ALLOWED_MASTERS = {"customer", "submitter", "manufacturer", "sample-name", "test", "uom", "protocol"}
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
@@ -216,7 +216,8 @@ class BookingListView(LoginRequiredMixin, ListView):
 
 class BookingApproveView(RoleRequiredMixin, PermissionRequiredMixin, View):
     permission_required = "bookings.change_booking"
-    required_roles = ("Manager", "Admin")
+    required_roles = ("Checked By",)
+    allow_staff = False
 
     def post(self, request, pk):
         booking = get_object_or_404(Booking, pk=pk)
@@ -380,5 +381,5 @@ class InlineMasterCreateView(RoleRequiredMixin, View):
 def create_default_roles():
     from django.contrib.auth.models import Group
 
-    for role in ("Admin", "Manager", "Incharge", "Analyst"):
+    for role in ("Admin", "Manager", "Incharge", "Analyst", "Checked By"):
         Group.objects.get_or_create(name=role)

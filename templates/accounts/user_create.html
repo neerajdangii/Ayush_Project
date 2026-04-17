@@ -6,13 +6,25 @@
     <h5 class="mb-0">Create User</h5>
   </div>
   <div class="card-body">
-    <form method="post" class="row g-3">
+    <form method="post" class="row g-3" enctype="multipart/form-data">
       {% csrf_token %}
 
       <div class="col-md-6">
         <label class="form-label" for="id_username">Username</label>
         {{ form.username }}
         {{ form.username.errors }}
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label" for="id_first_name">First name</label>
+        {{ form.first_name }}
+        {{ form.first_name.errors }}
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label" for="id_last_name">Last name</label>
+        {{ form.last_name }}
+        {{ form.last_name.errors }}
       </div>
 
       <div class="col-md-6">
@@ -39,12 +51,24 @@
       </div>
 
       <div class="col-md-3 form-check mt-4 ms-3">
-        {{ form.is_superuser }}
-        <label class="form-check-label" for="id_is_superuser">Superuser</label>
+        {{ form.is_checked_by }}
+        <label class="form-check-label" for="id_is_checked_by">Checked By</label>
+      </div>
+
+      <div class="col-md-3 form-check mt-4 ms-3">
+        {{ form.is_person_incharge }}
+        <label class="form-check-label" for="id_is_person_incharge">Person In-charge</label>
       </div>
 
       <div class="col-md-12">
-        <label class="form-label">Assign Role Groups</label>
+        <label class="form-label" for="id_signature_file">Signature file (PNG/JPG)</label>
+        {{ form.signature_file }}
+        {{ form.signature_file.errors }}
+        <div class="form-text">Used in report footer when user is Checked By or Person In-charge.</div>
+      </div>
+
+      <div class="col-md-12">
+        <label class="form-label">Other Role Groups</label>
         {{ form.groups }}
         {{ form.groups.errors }}
       </div>

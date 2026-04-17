@@ -102,8 +102,8 @@
     });
   }
 
-  function parseCssLengthToPixels(cssVar, defaultValue) {
-    var root = document.documentElement;
+  function parseCssLengthToPixels(cssVar, defaultValue, scopeElement) {
+    var root = scopeElement || document.documentElement;
     var value = getComputedStyle(root).getPropertyValue(cssVar).trim();
 
     if (!value) return defaultValue;
@@ -124,12 +124,14 @@
     return pixels;
   }
 
-  function getResultContainerMaxHeight() {
-    var pageHeight    = parseCssLengthToPixels(VAR_PAGE_HEIGHT,        297 * 3.7795);
-    var letterheadTop = parseCssLengthToPixels(VAR_LETTERHEAD_TOP,      42 * 3.7795);
-    var plainTop      = parseCssLengthToPixels(VAR_PLAIN_TOP,           42 * 3.7795);
-    var paddingBottom = parseCssLengthToPixels(VAR_PAGE_PADDING_BOTTOM, 12 * 3.7795);
-    var footerReserve = parseCssLengthToPixels(VAR_FOOTER_RESERVE,     190);
+  function getResultContainerMaxHeight(pageElement) {
+    // Read CSS vars from the actual page wrapper so per-page overrides (like continuation pages)
+    // affect pagination measurements.
+    var pageHeight    = parseCssLengthToPixels(VAR_PAGE_HEIGHT,        297 * 3.7795, pageElement);
+    var letterheadTop = parseCssLengthToPixels(VAR_LETTERHEAD_TOP,      42 * 3.7795, pageElement);
+    var plainTop      = parseCssLengthToPixels(VAR_PLAIN_TOP,           42 * 3.7795, pageElement);
+    var paddingBottom = parseCssLengthToPixels(VAR_PAGE_PADDING_BOTTOM, 12 * 3.7795, pageElement);
+    var footerReserve = parseCssLengthToPixels(VAR_FOOTER_RESERVE,     190, pageElement);
 
     var topOffset = Math.max(letterheadTop, plainTop);
     var available = pageHeight - topOffset - paddingBottom - footerReserve - FOOTER_SAFETY_GAP;
@@ -195,7 +197,7 @@
   }
 
   function getResultLimit(page, container) {
-    var calculatedLimit = getResultContainerMaxHeight();
+    var calculatedLimit = getResultContainerMaxHeight(page && page.page ? page.page : null);
     var footerBoundary =
       page.querySelector(".coa-page-footer") ||
       page.querySelector(".coa-signature-line") ||
@@ -634,6 +636,31 @@
     });
   }
 
+  function adjustSectionTitleVisibility(pageRoot) {
+    if (!pageRoot || !pageRoot.querySelector) return;
+
+    var titleNode = pageRoot.querySelector('.coa-section-title');
+    var resultContainer = pageRoot.querySelector('.coa-page-result');
+    if (!titleNode || !resultContainer) return;
+
+    var nodes = nonBlankNodes(resultContainer);
+    if (!nodes.length) {
+      titleNode.style.display = 'none';
+      return;
+    }
+
+    // Keep the title whenever the page contains actual result tables.
+    if (resultContainer.querySelector('table')) return;
+
+    // Hide the title if the page only contains tail blocks (end/remarks/signature etc).
+    var hasNonTailContent = nodes.some(function (node) {
+      return !(isTailBlock(node) || isPageBreak(node));
+    });
+    if (!hasNonTailContent) {
+      titleNode.style.display = 'none';
+    }
+  }
+
   function renderFallbackFirstPage(source, tail) {
     var firstPage = document.getElementById('coa-page-first');
     var firstResult = firstPage ? firstPage.querySelector('.coa-page-result') : null;
@@ -650,6 +677,7 @@
       firstResult.insertAdjacentHTML('beforeend', tail.innerHTML);
     }
 
+    adjustSectionTitleVisibility(firstPage);
     renderQRCodes(firstPage);
     document.body.classList.remove('coa-rendered-ok');
     document.body.classList.add('coa-pagination-failed');
@@ -736,6 +764,7 @@
         return;
       }
 
+      adjustSectionTitleVisibility(page);
       pages.push(page);
     }
 

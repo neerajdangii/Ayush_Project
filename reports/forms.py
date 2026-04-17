@@ -1,28 +1,49 @@
 from django import forms
 from django.db.models import Q
+from django.contrib.auth import get_user_model
 
 from .models import Report, ReportRemark, ReportTemplate
 from .template_library import VITAMIN_ANALYSIS_REPORT_HTML
 
 DATE_FORMAT_DMY = "%d/%m/%Y"
 DATE_INPUT_FORMAT = "%Y-%m-%d"
-DATE_PLACEHOLDER = "YYYY-MM-DD"
+DATE_PLACEHOLDER = "DD/MM/YYYY"
 DEFAULT_COA_RESULT_TEMPLATE = VITAMIN_ANALYSIS_REPORT_HTML
 
 
 class ReportApprovalForm(forms.ModelForm):
+    incharge_user = forms.ModelChoiceField(
+        queryset=get_user_model().objects.none(),
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Person In-charge",
+    )
     analysis_start_date = forms.DateField(
         required=False,
         widget=forms.DateInput(
-            format=DATE_INPUT_FORMAT,
-            attrs={"type": "date", "class": "form-control", "placeholder": DATE_PLACEHOLDER},
+            format=DATE_FORMAT_DMY,
+            attrs={
+                "type": "text",
+                "class": "form-control booking-date-input",
+                "placeholder": DATE_PLACEHOLDER,
+                "data-picker-kind": "date",
+                "data-close-on-pick": "1",
+                "autocomplete": "off",
+            },
         ),
     )
     analysis_end_date = forms.DateField(
         required=False,
         widget=forms.DateInput(
-            format=DATE_INPUT_FORMAT,
-            attrs={"type": "date", "class": "form-control", "placeholder": DATE_PLACEHOLDER},
+            format=DATE_FORMAT_DMY,
+            attrs={
+                "type": "text",
+                "class": "form-control booking-date-input",
+                "placeholder": DATE_PLACEHOLDER,
+                "data-picker-kind": "date",
+                "data-close-on-pick": "1",
+                "autocomplete": "off",
+            },
         ),
     )
 
@@ -32,8 +53,15 @@ class ReportApprovalForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["analysis_start_date"].input_formats = [DATE_INPUT_FORMAT]
-        self.fields["analysis_end_date"].input_formats = [DATE_INPUT_FORMAT]
+        UserModel = get_user_model()
+        incharge_qs = (
+            UserModel.objects.filter(is_active=True, groups__name="Incharge")
+            .order_by("first_name", "last_name", "username")
+            .distinct()
+        )
+        self.fields["incharge_user"].queryset = incharge_qs
+        self.fields["analysis_start_date"].input_formats = [DATE_INPUT_FORMAT, DATE_FORMAT_DMY]
+        self.fields["analysis_end_date"].input_formats = [DATE_INPUT_FORMAT, DATE_FORMAT_DMY]
         if self.instance and self.instance.pk and self.instance.booking_id:
             self.fields["analysis_start_date"].initial = (
                 self.instance.booking.analysis_start_date.date() if self.instance.booking.analysis_start_date else None
@@ -41,12 +69,28 @@ class ReportApprovalForm(forms.ModelForm):
             self.fields["analysis_end_date"].initial = (
                 self.instance.booking.analysis_end_date.date() if self.instance.booking.analysis_end_date else None
             )
+            if self.instance.incharge_id:
+                self.fields["incharge_user"].initial = self.instance.incharge_id
+            else:
+                default_incharge = incharge_qs.first()
+                if default_incharge:
+                    self.fields["incharge_user"].initial = default_incharge.pk
 
 
 class COAEditForm(forms.ModelForm):
+    selected_remarks = forms.ModelMultipleChoiceField(
+        queryset=ReportRemark.objects.none(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={"class": "d-none", "id": "id_selected_remarks", "size": 4}),
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["selected_remark"].queryset = ReportRemark.objects.filter(is_active=True)
+        active_remarks = ReportRemark.objects.filter(is_active=True)
+        self.fields["selected_remark"].queryset = active_remarks
+        self.fields["selected_remarks"].queryset = active_remarks
+        if self.instance and self.instance.selected_remark_id:
+            self.initial["selected_remarks"] = [self.instance.selected_remark_id]
         current_template_id = self.instance.report_template_id if self.instance else None
         self.fields["report_template"].queryset = ReportTemplate.objects.filter(
             Q(is_active=True) | Q(pk=current_template_id)
@@ -89,11 +133,18 @@ class COAEditForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        selected_remark = cleaned_data.get("selected_remark")
+        selected_remarks = list(cleaned_data.get("selected_remarks") or [])
         remark_text = (cleaned_data.get("remark_text") or "").strip()
 
-        if selected_remark and not remark_text:
-            cleaned_data["remark_text"] = selected_remark.content
+        if selected_remarks:
+            cleaned_data["selected_remark"] = selected_remarks[0]
+        else:
+            cleaned_data["selected_remark"] = None
+
+        if selected_remarks and not remark_text:
+            cleaned_data["remark_text"] = "\n".join(
+                content for content in [remark.content.strip() for remark in selected_remarks] if content
+            )
 
         return cleaned_data
 
@@ -102,7 +153,7 @@ class COAEditForm(forms.ModelForm):
 
     class Meta:
         model = Report
-        fields = ["report_template", "ceo_content", "final_outcome", "selected_remark", "remark_text"]
+        fields = ["report_template", "ceo_content", "final_outcome", "selected_remarks", "selected_remark", "remark_text"]
         widgets = {
             "report_template": forms.Select(attrs={"class": "form-select", "id": "id_report_template"}),
             "ceo_content": forms.Textarea(
@@ -114,14 +165,14 @@ class COAEditForm(forms.ModelForm):
                 }
             ),
             "final_outcome": forms.Select(attrs={"class": "form-select"}),
-            "selected_remark": forms.Select(attrs={"class": "form-select", "id": "id_selected_remark"}),
+            "selected_remark": forms.HiddenInput(),
             "remark_text": forms.Textarea(attrs={"class": "form-control", "rows": 4}),
         }
         labels = {
             "report_template": "Report Template",
             "ceo_content": "CEO Content",
             "final_outcome": "Final Outcome",
-            "selected_remark": "Remark Master",
+            "selected_remarks": "Remark Master",
             "remark_text": "Remarks",
         }
 
