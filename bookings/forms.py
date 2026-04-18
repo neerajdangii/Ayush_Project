@@ -75,6 +75,7 @@ class BookingForm(forms.ModelForm):
             "manufacture_date",
             "expiry_retest_date",
             "license_no",
+            "customer_sr_no",
             "collected_by_name",
             "sampling_procedure",
             "analysis_start_date",
@@ -83,43 +84,39 @@ class BookingForm(forms.ModelForm):
         ]
         widgets = {
             "booking_date": forms.DateTimeInput(
-                format=DATETIME_FORMAT_DMY,
+                format=DATETIME_LOCAL_INPUT_FORMAT,
                 attrs={
                     "type": "text",
                     "class": "form-control booking-date-input",
-                    "placeholder": DATETIME_PLACEHOLDER,
                     "data-picker-kind": "datetime",
-                    "autocomplete": "off",
+                    "step": "60",
                 },
             ),
             "letter_date": forms.DateTimeInput(
-                format=DATETIME_FORMAT_DMY,
+                format=DATETIME_LOCAL_INPUT_FORMAT,
                 attrs={
                     "type": "text",
                     "class": "form-control booking-date-input",
-                    "placeholder": DATETIME_PLACEHOLDER,
                     "data-picker-kind": "datetime",
-                    "autocomplete": "off",
+                    "step": "60",
                 },
             ),
             "sampling_upto": forms.DateTimeInput(
-                format=DATETIME_FORMAT_DMY,
+                format=DATETIME_LOCAL_INPUT_FORMAT,
                 attrs={
                     "type": "text",
                     "class": "form-control booking-date-input",
-                    "placeholder": DATETIME_PLACEHOLDER,
                     "data-picker-kind": "datetime",
-                    "autocomplete": "off",
+                    "step": "60",
                 },
             ),
             "sample_receipt_date": forms.DateTimeInput(
-                format=DATETIME_FORMAT_DMY,
+                format=DATETIME_LOCAL_INPUT_FORMAT,
                 attrs={
                     "type": "text",
                     "class": "form-control booking-date-input",
-                    "placeholder": DATETIME_PLACEHOLDER,
                     "data-picker-kind": "datetime",
-                    "autocomplete": "off",
+                    "step": "60",
                 },
             ),
             "customer": forms.Select(attrs={"class": "form-select"}),
@@ -138,48 +135,41 @@ class BookingForm(forms.ModelForm):
             "batch_no": forms.TextInput(attrs={"class": "form-control"}),
             "batch_size": forms.TextInput(attrs={"class": "form-control"}),
             "manufacture_date": forms.DateInput(
-                format=DATE_FORMAT_DMY,
+                format=DATE_INPUT_FORMAT,
                 attrs={
                     "type": "text",
                     "class": "form-control booking-date-input",
-                    "placeholder": DATE_PLACEHOLDER,
                     "data-picker-kind": "date",
-                    "data-close-on-pick": "1",
-                    "autocomplete": "off",
                 },
             ),
             "expiry_retest_date": forms.DateInput(
-                format=DATE_FORMAT_DMY,
+                format=DATE_INPUT_FORMAT,
                 attrs={
                     "type": "text",
                     "class": "form-control booking-date-input",
-                    "placeholder": DATE_PLACEHOLDER,
                     "data-picker-kind": "date",
-                    "data-close-on-pick": "1",
-                    "autocomplete": "off",
                 },
             ),
             "license_no": forms.TextInput(attrs={"class": "form-control"}),
+            "customer_sr_no": forms.TextInput(attrs={"class": "form-control"}),
             "collected_by_name": forms.TextInput(attrs={"class": "form-control"}),
             "sampling_procedure": forms.TextInput(attrs={"class": "form-control"}),
             "analysis_start_date": forms.DateTimeInput(
-                format=DATETIME_FORMAT_DMY,
+                format=DATETIME_LOCAL_INPUT_FORMAT,
                 attrs={
                     "type": "text",
                     "class": "form-control booking-date-input",
-                    "placeholder": DATETIME_PLACEHOLDER,
                     "data-picker-kind": "datetime",
-                    "autocomplete": "off",
+                    "step": "60",
                 },
             ),
             "analysis_end_date": forms.DateTimeInput(
-                format=DATETIME_FORMAT_DMY,
+                format=DATETIME_LOCAL_INPUT_FORMAT,
                 attrs={
                     "type": "text",
                     "class": "form-control booking-date-input",
-                    "placeholder": DATETIME_PLACEHOLDER,
                     "data-picker-kind": "datetime",
-                    "autocomplete": "off",
+                    "step": "60",
                 },
             ),
             "remarks": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
@@ -265,28 +255,8 @@ class SampleNameMasterForm(MasterForm):
 
 
 class TestMasterForm(MasterForm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        current_template_id = getattr(self.instance, "report_template_id", None)
-        from reports.models import ReportTemplate
-
-        self.fields["report_template"].queryset = ReportTemplate.objects.filter(
-            is_active=True
-        ) | ReportTemplate.objects.filter(pk=current_template_id)
-        self.fields["report_template"].queryset = self.fields["report_template"].queryset.distinct().order_by("name")
-        self.fields["report_template"].required = False
-        self.fields["report_template"].help_text = (
-            "Optional. If selected, this template is auto-added in the COA editor when this test is booked."
-        )
-
     class Meta(MasterForm.Meta):
         model = TestMaster
-        fields = ["name", "report_template", "is_active"]
-        widgets = {
-            "name": forms.TextInput(attrs={"class": "form-control"}),
-            "report_template": forms.Select(attrs={"class": "form-select"}),
-            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-        }
 
 
 class ProtocolMasterForm(MasterForm):

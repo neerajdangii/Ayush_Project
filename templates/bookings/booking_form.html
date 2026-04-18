@@ -157,10 +157,14 @@
           </div>
         </div>
 
-      <div class="booking-row booking-row--3-equal">
+      <div class="booking-row booking-row--4">
           <div class="booking-col">
             <label class="form-label">License No</label>
             {{ form.license_no }}
+          </div>
+          <div class="booking-col">
+            <label class="form-label">Customer Sr No/Reference No</label>
+            {{ form.customer_sr_no }}
           </div>
           <div class="booking-col">
             <label class="form-label">Booking Date</label>
@@ -1238,6 +1242,66 @@
     }
   });
 
+  // Auto-populate form from previous booking with same sample & customer
+  async function loadPreviousBookingData() {
+    const sampleNameSelect = document.getElementById('id_sample_name');
+    const customerSelect = document.getElementById('id_customer');
+    
+    const sampleNameId = sampleNameSelect.value;
+    const customerId = customerSelect.value;
+    
+    if (!sampleNameId || !customerId) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(
+        `/bookings/api/similar-booking-data/?sample_name_id=${sampleNameId}&customer_id=${customerId}`
+      );
+      const data = await response.json();
+      
+      if (data.found) {
+        // Populate fields from previous booking
+        const fields = [
+          'submitter', 'manufacturer', 'sample_type', 'protocol', 'uom', 'booking_type',
+          'sample_qty', 'sample_location', 'packaging_mode', 'sample_condition',
+          'batch_no', 'batch_size', 'license_no', 'customer_sr_no',
+          'collected_by_name', 'sampling_procedure', 'remarks'
+        ];
+        
+        fields.forEach(fieldName => {
+          const field = document.getElementById(`id_${fieldName}`);
+          if (field && data[fieldName]) {
+            field.value = data[fieldName];
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        });
+        
+        // Populate date fields
+        if (data.manufacture_date) {
+          document.getElementById('id_manufacture_date').value = data.manufacture_date;
+        }
+        if (data.expiry_retest_date) {
+          document.getElementById('id_expiry_retest_date').value = data.expiry_retest_date;
+        }
+        
+        // Silent load - no notification shown
+      }
+    } catch (error) {
+      console.error('Error loading previous booking data:', error);
+    }
+  }
+  
+  // Listen for changes on sample_name and customer fields
+  const sampleNameSelect = document.getElementById('id_sample_name');
+  
+  if (sampleNameSelect) {
+    sampleNameSelect.addEventListener('change', loadPreviousBookingData);
+  }
+  if (customerSelect) {
+    customerSelect.addEventListener('change', loadPreviousBookingData);
+  }
+
   if (bookingForm) {
     bookingForm.addEventListener('submit', () => {
       searchableSelects.forEach((state) => {
@@ -1357,6 +1421,245 @@
   .booking-test-search__empty {
     color: #64748b;
     background: #f8fafc;
+  }
+
+  /* Force a clean white background for booking fields */
+  .booking-shell,
+  .booking-layout,
+  .booking-panel,
+  .booking-row,
+  .booking-col,
+  .form-control,
+  .form-select,
+  textarea.form-control {
+    background: #fff !important;
+  }
+
+  input:-webkit-autofill,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    background-color: #fff !important;
+    color: #000 !important;
+  }
+
+  .booking-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    width: 100%;
+  }
+
+  .booking-panel,
+  .booking-test-panel,
+  .booking-remarks-panel {
+    width: 100%;
+    border: 1px solid #d4d8de;
+    border-radius: 14px;
+    padding: 18px;
+    background: #fff;
+  }
+
+  .booking-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .booking-panel__title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .booking-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+
+  .booking-col {
+    flex: 1 1 240px;
+    min-width: 210px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .booking-col--wide {
+    flex: 2 1 440px;
+    min-width: 280px;
+  }
+
+  .booking-test-panel__header,
+  .booking-test-panel__body {
+    width: 100%;
+  }
+
+  .booking-test-panel__header {
+    display: grid;
+    grid-template-columns: minmax(180px, 2fr) repeat(4, minmax(120px, 1fr)) minmax(160px, 1.6fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #dde3eb;
+  }
+
+  .booking-test-panel__main {
+    width: 100%;
+  }
+
+  .booking-test-selector__controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: stretch;
+    margin-bottom: 14px;
+  }
+
+  .booking-test-search {
+    width: 100%;
+    min-width: 220px;
+  }
+
+  .booking-searchable__input,
+  .booking-test-search__input {
+    width: 100%;
+  }
+
+  .booking-test-selector__rows {
+    width: 100%;
+  }
+
+  .booking-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  .booking-actions .btn {
+    min-width: 140px;
+  }
+
+  .booking-remarks-panel {
+    margin-top: 8px;
+  }
+
+  @media (max-width: 1200px) {
+    .booking-test-panel__header {
+      grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 992px) {
+    .booking-row,
+    .booking-test-panel__header {
+      display: block;
+    }
+
+    .booking-col,
+    .booking-test-panel__header > * {
+      width: 100%;
+      min-width: auto;
+    }
+
+    .booking-toolbar {
+      justify-content: flex-start;
+    }
+
+    .booking-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .booking-panel,
+    .booking-test-panel,
+    .booking-remarks-panel {
+      padding: 14px;
+    }
+
+    .booking-toolbar,
+    .booking-actions {
+      gap: 10px;
+    }
+
+    .booking-panel__title {
+      font-size: 1.1rem;
+    }
+
+    .booking-test-panel__header {
+      gap: 10px;
+    }
+  }
+
+  @media print {
+    body {
+      background: #fff !important;
+      color: #000 !important;
+    }
+
+    .booking-shell,
+    .booking-layout,
+    .booking-panel,
+    .booking-test-panel,
+    .booking-remarks-panel {
+      box-shadow: none !important;
+      border: none !important;
+      background: transparent !important;
+    }
+
+    .booking-toolbar,
+    .booking-actions,
+    .booking-test-selector__controls,
+    .booking-searchable__dropdown,
+    .booking-test-search__dropdown,
+    .booking-datepicker,
+    .booking-list-btn,
+    .plus-master,
+    .btn,
+    button {
+      display: none !important;
+    }
+
+    input,
+    select,
+    textarea,
+    .booking-searchable__input {
+      border: 1px solid #333 !important;
+      background: transparent !important;
+      color: #000 !important;
+    }
+
+    .booking-row,
+    .booking-test-panel__header,
+    .booking-test-selector__rows,
+    .booking-col {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .booking-test-panel__header {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(100px, 1fr));
+    }
+  }
+
+  /* Tempusdominus styling within booking form */
+  .datetimepicker-input::-webkit-outer-spin-button,
+  .datetimepicker-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .datetimepicker-input[type=number] {
+    -moz-appearance: textfield;
   }
 </style>
 {% endblock %}

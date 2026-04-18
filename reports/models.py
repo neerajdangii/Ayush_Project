@@ -5,6 +5,7 @@ from django.db import models
 from django.utils.html import escape
 
 from bookings.models import Booking, ProtocolMaster, SampleNameMaster
+from .template_library import build_tests_without_templates_table
 
 
 class ReportRemark(models.Model):
@@ -170,6 +171,29 @@ class Report(models.Model):
         return ", ".join(
             self.booking.test_to_be_performed.values_list("name", flat=True)
         )
+
+    @property
+    def tests_with_templates(self):
+        """Return tests that have assigned report templates (e.g., Assay)."""
+        return self.booking.test_to_be_performed.select_related("report_template").filter(
+            report_template__isnull=False,
+            report_template__is_active=True,
+        ).order_by("name")
+
+    @property
+    def tests_without_templates(self):
+        """Return tests that don't have assigned report templates."""
+        return self.booking.test_to_be_performed.select_related("report_template").filter(
+            report_template__isnull=True,
+        ).order_by("name")
+
+    @property
+    def generic_tests_table_html(self):
+        """Generate HTML table for tests without custom templates."""
+        tests_without = self.tests_without_templates
+        if not tests_without.exists():
+            return ""
+        return build_tests_without_templates_table(tests_without)
 
     def approve_by_manager(self, manager_user, incharge_user=None):
         self.manager = manager_user

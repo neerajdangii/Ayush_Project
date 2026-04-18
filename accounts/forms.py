@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group, Permission, User
 
 from .models import UserProfile
 
@@ -28,6 +28,18 @@ class AdminUserCreateForm(UserCreationForm):
         required=False,
         widget=forms.CheckboxSelectMultiple,
     )
+    permissions = forms.ModelMultipleChoiceField(
+        queryset=Permission.objects.filter(
+            codename__in=[
+                'add_booking', 'change_booking', 'delete_booking', 'view_booking',
+                'add_report', 'change_report', 'delete_report', 'view_report',
+            ]
+        ).order_by('content_type__app_label', 'codename'),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label="Direct Permissions",
+        help_text="Assign essential bookings and reports permissions directly to this user.",
+    )
 
     class Meta:
         model = User
@@ -43,6 +55,7 @@ class AdminUserCreateForm(UserCreationForm):
             "is_person_incharge",
             "signature_file",
             "groups",
+            "permissions",
         )
 
     def __init__(self, *args, **kwargs):
@@ -54,6 +67,7 @@ class AdminUserCreateForm(UserCreationForm):
         self.fields["is_checked_by"].widget.attrs["class"] = "form-check-input"
         self.fields["is_person_incharge"].widget.attrs["class"] = "form-check-input"
         self.fields["signature_file"].widget.attrs["class"] = "form-control"
+        self.fields["permissions"].widget.attrs["class"] = "form-check-input"
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -66,6 +80,7 @@ class AdminUserCreateForm(UserCreationForm):
         if commit:
             user.save()
             user.groups.set(self.cleaned_data.get("groups"))
+            user.user_permissions.set(self.cleaned_data.get("permissions"))
             if user.is_staff:
                 staff_group, _ = Group.objects.get_or_create(name="Staff")
                 staff_group.user_set.add(user)
@@ -91,10 +106,24 @@ class AdminUserUpdateForm(forms.ModelForm):
     is_checked_by = forms.BooleanField(required=False, label="Checked By")
     is_person_incharge = forms.BooleanField(required=False, label="Person In-charge")
     signature_file = forms.FileField(required=False)
+    first_name = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
+    last_name = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
     groups = forms.ModelMultipleChoiceField(
         queryset=Group.objects.filter(name__in=["Admin", "Manager", "Analyst"]).order_by("name"),
         required=False,
         widget=forms.CheckboxSelectMultiple,
+    )
+    permissions = forms.ModelMultipleChoiceField(
+        queryset=Permission.objects.filter(
+            codename__in=[
+                'add_booking', 'change_booking', 'delete_booking', 'view_booking',
+                'add_report', 'change_report', 'delete_report', 'view_report',
+            ]
+        ).order_by('content_type__app_label', 'codename'),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label="Direct Permissions",
+        help_text="Assign essential bookings and reports permissions directly to this user.",
     )
 
     class Meta:
@@ -110,6 +139,7 @@ class AdminUserUpdateForm(forms.ModelForm):
             "is_person_incharge",
             "signature_file",
             "groups",
+            "permissions",
         )
 
     def __init__(self, *args, **kwargs):
@@ -123,12 +153,14 @@ class AdminUserUpdateForm(forms.ModelForm):
         self.fields["is_checked_by"].widget.attrs["class"] = "form-check-input"
         self.fields["is_person_incharge"].widget.attrs["class"] = "form-check-input"
         self.fields["signature_file"].widget.attrs["class"] = "form-control"
+        self.fields["permissions"].widget.attrs["class"] = "form-check-input"
 
         if self.instance and getattr(self.instance, "pk", None):
             self.fields["is_active"].initial = bool(self.instance.is_active)
             self.fields["is_staff"].initial = bool(self.instance.is_staff)
             self.fields["is_checked_by"].initial = self.instance.groups.filter(name="Checked By").exists()
             self.fields["is_person_incharge"].initial = self.instance.groups.filter(name="Incharge").exists()
+            self.fields["permissions"].initial = self.instance.user_permissions.all()
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -170,6 +202,7 @@ class AdminUserUpdateForm(forms.ModelForm):
                 desired_groups = [g for g in desired_groups if g.pk != staff_group.pk]
 
             user.groups.set(desired_groups)
+            user.user_permissions.set(self.cleaned_data.get("permissions"))
 
             signature_clear = self.data.get("signature_file-clear") == "on"
             signature_file = self.cleaned_data.get("signature_file")

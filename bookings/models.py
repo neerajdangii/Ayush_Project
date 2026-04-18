@@ -104,6 +104,7 @@ class Booking(models.Model):
     manufacture_date = models.DateField(null=True, blank=True)
     expiry_retest_date = models.DateField(null=True, blank=True)
     license_no = models.CharField(max_length=255, blank=True)
+    customer_sr_no = models.CharField(max_length=128, blank=True)
     collected_by_name = models.CharField(max_length=255, blank=True)
     sampling_procedure = models.CharField(max_length=255, blank=True)
     analysis_start_date = models.DateTimeField(null=True, blank=True)
@@ -165,6 +166,19 @@ class Booking(models.Model):
         last_value = numeric_codes.get("max_code") or 999
         next_value = last_value + 1
         return str(next_value)
+
+    @classmethod
+    def get_last_similar_booking(cls, sample_name_id, customer_id):
+        """Fetch the most recent booking with the same sample name and customer."""
+        if not sample_name_id or not customer_id:
+            return None
+        return cls.objects.filter(
+            sample_name_id=sample_name_id,
+            customer_id=customer_id
+        ).exclude(
+            sample_name_id__isnull=True,
+            customer_id__isnull=True
+        ).order_by("-created_at").first()
 
     def save(self, *args, **kwargs):
         if not self.tracking_code:

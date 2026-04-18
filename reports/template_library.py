@@ -220,3 +220,15 @@ def build_generic_result_table(test_names):
         for index, name in enumerate(names, start=1)
     )
     return GENERIC_RESULT_TABLE_TEMPLATE.format(rows=rows)
+
+
+def build_tests_without_templates_table(tests):
+    """Build a results table for tests that don't have custom templates."""
+    if not tests:
+        return ""
+    
+    rows = "\n".join(
+        GENERIC_RESULT_ROW_TEMPLATE.format(serial=index, test_name=test.name)
+        for index, test in enumerate(tests, start=1)
+    )
+    return GENERIC_RESULT_TABLE_TEMPLATE.format(rows=rows)

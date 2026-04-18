@@ -275,7 +275,7 @@ class MasterListView(LoginRequiredMixin, TemplateView):
 
 
 class MasterCreateView(RoleRequiredMixin, PermissionRequiredMixin, CreateView):
-    required_roles = ("Admin",)
+    required_roles = ("Admin", "Manager")
     permission_required = "bookings.add_customermaster"
     template_name = "bookings/master_form.html"
 
@@ -302,7 +302,7 @@ class MasterCreateView(RoleRequiredMixin, PermissionRequiredMixin, CreateView):
 
 
 class MasterUpdateView(RoleRequiredMixin, PermissionRequiredMixin, UpdateView):
-    required_roles = ("Admin",)
+    required_roles = ("Admin", "Manager")
     permission_required = "bookings.change_customermaster"
     template_name = "bookings/master_form.html"
 
@@ -329,7 +329,7 @@ class MasterUpdateView(RoleRequiredMixin, PermissionRequiredMixin, UpdateView):
 
 
 class MasterDeleteView(RoleRequiredMixin, PermissionRequiredMixin, DeleteView):
-    required_roles = ("Admin",)
+    required_roles = ("Admin", "Manager")
     permission_required = "bookings.delete_customermaster"
     template_name = "bookings/master_confirm_delete.html"
 
@@ -355,7 +355,7 @@ class MasterDeleteView(RoleRequiredMixin, PermissionRequiredMixin, DeleteView):
 
 
 class InlineMasterCreateView(RoleRequiredMixin, View):
-    required_roles = ("Analyst", "Admin")
+    required_roles = ("Analyst", "Manager", "Admin")
 
     def post(self, request, slug):
         if slug not in INLINE_ALLOWED_MASTERS:
@@ -383,6 +383,53 @@ class InlineMasterCreateView(RoleRequiredMixin, View):
                 "created": created,
             }
         )
+
+
+class GetSimilarBookingDataView(LoginRequiredMixin, View):
+    """Fetch previous booking data for matching sample_name and customer."""
+    
+    def get(self, request):
+        sample_name_id = request.GET.get("sample_name_id")
+        customer_id = request.GET.get("customer_id")
+        
+        if not sample_name_id or not customer_id:
+            return JsonResponse({"error": "Missing sample_name_id or customer_id"}, status=400)
+        
+        try:
+            sample_name_id = int(sample_name_id)
+            customer_id = int(customer_id)
+        except (ValueError, TypeError):
+            return JsonResponse({"error": "Invalid IDs"}, status=400)
+        
+        previous_booking = Booking.get_last_similar_booking(sample_name_id, customer_id)
+        
+        if not previous_booking:
+            return JsonResponse({"found": False})
+        
+        return JsonResponse({
+            "found": True,
+            "sample_name_id": previous_booking.sample_name_id,
+            "customer_id": previous_booking.customer_id,
+            "submitter_id": previous_booking.submitter_id,
+            "manufacturer_id": previous_booking.manufacturer_id,
+            "sample_type": previous_booking.sample_type,
+            "protocol_id": previous_booking.protocol_id,
+            "uom_id": previous_booking.uom_id,
+            "booking_type": previous_booking.booking_type,
+            "sample_qty": previous_booking.sample_qty or "",
+            "sample_location": previous_booking.sample_location or "",
+            "packaging_mode": previous_booking.packaging_mode or "",
+            "sample_condition": previous_booking.sample_condition or "",
+            "batch_no": previous_booking.batch_no or "",
+            "batch_size": previous_booking.batch_size or "",
+            "manufacture_date": previous_booking.manufacture_date.isoformat() if previous_booking.manufacture_date else "",
+            "expiry_retest_date": previous_booking.expiry_retest_date.isoformat() if previous_booking.expiry_retest_date else "",
+            "license_no": previous_booking.license_no or "",
+            "customer_sr_no": previous_booking.customer_sr_no or "",
+            "collected_by_name": previous_booking.collected_by_name or "",
+            "sampling_procedure": previous_booking.sampling_procedure or "",
+            "remarks": previous_booking.remarks or "",
+        })
 
 
 def create_default_roles():

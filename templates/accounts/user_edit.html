@@ -63,8 +63,47 @@
 
       <div class="col-md-12">
         <label class="form-label">Other Role Groups</label>
-        {{ form.groups }}
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+          {% for choice_value, choice_label in form.groups.field.choices %}
+            <div class="form-check">
+              <input 
+                class="form-check-input" 
+                type="checkbox" 
+                name="groups" 
+                value="{{ choice_value }}" 
+                id="id_groups_{{ choice_value }}"
+                {% if choice_value in form.groups.value %}checked{% endif %}
+              >
+              <label class="form-check-label" for="id_groups_{{ choice_value }}">
+                {{ choice_label }}
+              </label>
+            </div>
+          {% endfor %}
+        </div>
         {{ form.groups.errors }}
+      </div>
+
+      <div class="col-md-12">
+        <label class="form-label">Direct Permissions (Bookings & Reports)</label>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-top: 10px;">
+          {% for choice_value, choice_label in form.permissions.field.choices %}
+            <div class="form-check">
+              <input 
+                class="form-check-input" 
+                type="checkbox" 
+                name="permissions" 
+                value="{{ choice_value }}" 
+                id="id_permissions_{{ choice_value }}"
+                {% if choice_value in form.permissions.value %}checked{% endif %}
+              >
+              <label class="form-check-label" for="id_permissions_{{ choice_value }}" style="word-break: break-word;">
+                {{ choice_label }}
+              </label>
+            </div>
+          {% endfor %}
+        </div>
+        {{ form.permissions.errors }}
+        <div class="form-text mt-2">Choose specific bookings/reports permissions to grant this user directly.</div>
       </div>
 
       <div class="col-12 d-flex gap-2">

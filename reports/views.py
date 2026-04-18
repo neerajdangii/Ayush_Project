@@ -80,6 +80,9 @@ def _get_report_render_context(report, request, *, preview_mode, auto_print, is_
         "document_title": "Test Report" if is_test_report else "Certificate of Analysis",
         "tail_html": mark_safe(tail_html),
         "draft_remark_text": remark_text,
+        "tests_with_templates": report.tests_with_templates,
+        "tests_without_templates": report.tests_without_templates,
+        "generic_tests_table_html": mark_safe(report.generic_tests_table_html),
     }
 
     base = reverse("reports:coa_print", kwargs={"pk": report.pk})
@@ -255,6 +258,13 @@ class COAEditView(PermissionRequiredMixin, RoleRequiredMixin, UpdateView):
                 report_template__is_active=True,
             ).order_by("name")
         ]
+        context["tests_with_templates"] = self.object.tests_with_templates
+        context["tests_without_templates"] = self.object.tests_without_templates
+        context["generic_tests_table_html"] = self.object.generic_tests_table_html
+        context["all_tests_grouped"] = {
+            "with_templates": list(self.object.tests_with_templates),
+            "without_templates": list(self.object.tests_without_templates),
+        }
         context["old_report_options"] = [
             {
                 "id": report.pk,
