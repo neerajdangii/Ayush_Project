@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT_DIR="/root/Ayush_Project"
+
+if command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE_CMD="docker-compose"
+elif docker compose version >/dev/null 2>&1; then
+  COMPOSE_CMD="docker compose"
+else
+  echo "Error: neither docker-compose nor docker compose is available."
+  exit 1
+fi
+
+echo "Starting manual application update..."
+cd "$PROJECT_DIR"
+
+echo "Current branch:"
+git branch --show-current
+
+echo "Current commit before pull:"
+git log -1 --oneline
+
+echo "Pulling latest changes..."
+git pull
+
+echo "Current commit after pull:"
+git log -1 --oneline
+
+echo "Syncing .env with .env.prod for Docker Compose variable substitution..."
+cp .env.prod .env
+
+echo "Rebuilding and restarting containers..."
+$COMPOSE_CMD up -d --build
+
+echo "Container status:"
+$COMPOSE_CMD ps
+
+echo "Recent web logs:"
+$COMPOSE_CMD logs --tail=50 web
+
+echo "Manual update complete."
