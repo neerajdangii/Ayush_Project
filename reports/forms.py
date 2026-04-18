@@ -3,12 +3,11 @@ from django.db.models import Q
 from django.contrib.auth import get_user_model
 
 from .models import Report, ReportRemark, ReportTemplate
-from .template_library import VITAMIN_ANALYSIS_REPORT_HTML
+from .template_library import build_generic_result_table
 
 DATE_FORMAT_DMY = "%d/%m/%Y"
 DATE_INPUT_FORMAT = "%Y-%m-%d"
 DATE_PLACEHOLDER = "DD/MM/YYYY"
-DEFAULT_COA_RESULT_TEMPLATE = VITAMIN_ANALYSIS_REPORT_HTML
 
 
 class ReportApprovalForm(forms.ModelForm):
@@ -105,16 +104,61 @@ class COAEditForm(forms.ModelForm):
         existing_content = (self.instance.ceo_content or "") if self.instance else ""
         if existing_content:
             self.initial["ceo_content"] = existing_content
-        elif selected_template:
-            self.initial["ceo_content"] = selected_template.content
         else:
-            self.fields["ceo_content"].initial = DEFAULT_COA_RESULT_TEMPLATE
+            self.fields["ceo_content"].initial = self._build_default_content(selected_template)
+
+    def _selected_tests(self):
+        if not self.instance or not getattr(self.instance, "booking", None):
+            return []
+        return list(
+            self.instance.booking.test_to_be_performed.select_related("report_template").order_by("name")
+        )
+
+    def _build_default_content(self, selected_template=None):
+        tests = self._selected_tests()
+        plain_test_names = []
+        template_html_blocks = []
+        seen_template_ids = set()
+
+        for test in tests:
+            template = getattr(test, "report_template", None)
+            if template and template.is_active and template.content.strip():
+                if template.pk not in seen_template_ids:
+                    template_html_blocks.append(template.content.strip())
+                    seen_template_ids.add(template.pk)
+            else:
+                plain_test_names.append(test.name)
+
+        content_blocks = []
+        if plain_test_names:
+            content_blocks.append(build_generic_result_table(plain_test_names))
+
+        if selected_template and selected_template.is_active and selected_template.content.strip():
+            if selected_template.pk not in seen_template_ids:
+                content_blocks.append(selected_template.content.strip())
+                seen_template_ids.add(selected_template.pk)
+
+        content_blocks.extend(template_html_blocks)
+
+        if not content_blocks:
+            return build_generic_result_table([])
+
+        return "\n<p>&nbsp;</p>\n".join(content_blocks)
 
     def _suggest_template(self):
         if not self.instance or not getattr(self.instance, "booking", None):
             return None
 
         booking = self.instance.booking
+        test_template = (
+            booking.test_to_be_performed.filter(report_template__is_active=True)
+            .select_related("report_template")
+            .order_by("name")
+            .first()
+        )
+        if test_template and test_template.report_template_id:
+            return test_template.report_template
+
         queryset = ReportTemplate.objects.filter(is_active=True)
         default_template = queryset.filter(is_default=True).first()
         if booking.sample_name_id and booking.protocol_id:

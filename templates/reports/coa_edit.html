@@ -83,6 +83,14 @@
           <label for="id_report_template">Report Template</label>
           {{ form.report_template }}
           <small>Pick a saved result template for this sample and load it into the editor.</small>
+          {% if selected_test_templates %}
+          <small class="d-block mt-1">
+            Auto-linked from selected tests:
+            {% for item in selected_test_templates %}
+              {{ item.test_name }} -> {{ item.template_name }}{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+          </small>
+          {% endif %}
         </div>
         <div class="coa-meta-field d-flex align-items-end gap-2">
           <button class="btn btn-outline-primary" type="button" id="apply-report-template">Load Template</button>

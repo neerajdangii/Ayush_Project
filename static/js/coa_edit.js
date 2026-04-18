@@ -17,42 +17,19 @@
         <thead>
           <tr>
             <th style="width:8%;text-align:center;">S.No.</th>
-            <th style="width:24%;text-align:center;">Test Parameters</th>
-            <th style="width:28%;text-align:center;">Results/Observation</th>
+            <th style="width:32%;text-align:center;">Test Parameters</th>
+            <th style="width:25%;text-align:center;">Results/Observation</th>
             <th style="width:20%;text-align:center;">Specification/Limits</th>
-            <th style="width:20%;text-align:center;">Method</th>
+            <th style="width:15%;text-align:center;">Method</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td style="text-align:center;">1</td>
             <td>Parameter Name</td>
-            <td style="text-align:center;">Result</td>
-            <td style="text-align:center;">Limit</td>
-            <td style="text-align:center;">Method</td>
-          </tr>
-        </tbody>
-      </table>
-      <p style="margin:12px 0 4px;font-weight:700;text-align:center;">COMPOSITION</p>
-      <table style="width:100%;border-collapse:collapse;" border="1">
-        <thead>
-          <tr>
-            <th style="text-align:center;">Ingredient</th>
-            <th style="text-align:center;">Results</th>
-            <th style="text-align:center;">Label Claim</th>
-            <th style="text-align:center;">% Label Claim</th>
-            <th style="text-align:center;">Limits</th>
-            <th style="text-align:center;">Method</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Component</td>
-            <td style="text-align:center;">0.00</td>
-            <td style="text-align:center;">0.00</td>
-            <td style="text-align:center;">100%</td>
-            <td style="text-align:center;">NLT / NMT</td>
-            <td style="text-align:center;">M.S.</td>
+            <td style="text-align:center;">&nbsp;</td>
+            <td style="text-align:center;">&nbsp;</td>
+            <td style="text-align:center;">&nbsp;</td>
           </tr>
         </tbody>
       </table>
@@ -95,11 +72,11 @@
               callback([
                 {
                   type: 'menuitem',
-                  text: 'Load Result Template',
+                  text: 'Load Simple Result Table',
                   onAction: () => {
                     const existingContent = (editor.getContent({ format: 'text' }) || '').trim();
                     const shouldReplace = !existingContent || window.confirm(
-                      'Load the default result template? This will replace the current editor content.'
+                      'Load the simple result table? This will replace the current editor content.'
                     );
 
                     if (!shouldReplace) {
@@ -124,15 +101,14 @@
               callback([
                 {
                   type: 'menuitem',
-                  text: 'Insert Composition Row',
+                  text: 'Insert Simple Test Row',
                   onAction: () => editor.insertContent(`
                     <tr>
-                      <td style="padding:6px;">Component</td>
-                      <td style="padding:6px;text-align:center;">0.00</td>
-                      <td style="padding:6px;text-align:center;">0.00</td>
-                      <td style="padding:6px;text-align:center;">100%</td>
-                      <td style="padding:6px;text-align:center;">NLT / NMT</td>
-                      <td style="padding:6px;text-align:center;">M.S.</td>
+                      <td style="padding:6px;text-align:center;">#</td>
+                      <td style="padding:6px;">New Parameter</td>
+                      <td style="padding:6px;text-align:center;">&nbsp;</td>
+                      <td style="padding:6px;text-align:center;">&nbsp;</td>
+                      <td style="padding:6px;text-align:center;">&nbsp;</td>
                     </tr>
                   `)
                 }

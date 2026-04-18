@@ -68,7 +68,7 @@
             <span class="badge text-bg-secondary">Draft</span>
             {% endif %}
           </td>
-          <td>{{ r.manager_name|default:'-' }}</td>
+          <td>{{ r.updated_by_display }}</td>
           <td>
             <div class="d-flex flex-wrap gap-2">
               <a class="btn btn-sm btn-outline-primary" href="{% url 'reports:coa_print' r.pk %}">COA</a>

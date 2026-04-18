@@ -130,6 +130,13 @@ class Report(models.Model):
         null=True,
         blank=True,
     )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="updated_reports",
+        null=True,
+        blank=True,
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -167,6 +174,7 @@ class Report(models.Model):
     def approve_by_manager(self, manager_user, incharge_user=None):
         self.manager = manager_user
         self.manager_name = manager_user.get_full_name() or manager_user.username
+        self.updated_by = manager_user
         signature_url = None
         profile = getattr(manager_user, "profile", None)
         if profile and getattr(profile, "signature_file", None):
@@ -211,9 +219,17 @@ class Report(models.Model):
                 "incharge_name",
                 "incharge_signature",
                 "status",
+                "updated_by",
                 "updated_at",
             ]
         )
+
+    @property
+    def updated_by_display(self) -> str:
+        actor = self.updated_by or self.manager or self.created_by
+        if not actor:
+            return "-"
+        return actor.get_full_name() or actor.username
 
     def __str__(self) -> str:
         reg = self.booking.sample_reg_no if self.booking else None

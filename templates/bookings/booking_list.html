@@ -73,10 +73,13 @@
               {% else %}
               <span class="badge text-bg-warning">Pending</span>
               {% endif %}
+              <div class="text-muted small">Changed by: {{ b.updated_by_display }}</div>
             </td>
             <td>
+              {% if user|has_any_role:"Staff,Manager,Analyst,Admin" %}
               <a class="btn btn-sm btn-outline-primary" href="{% url 'bookings:edit' b.pk %}">Edit</a>
               <a class="btn btn-sm btn-outline-secondary" href="{% url 'bookings:create' %}?duplicate={{ b.pk }}">Duplicate</a>
+              {% endif %}
               {% if b.status == 'approved' %}
                 {% if user|has_role:"Checked By" %}
                 <a class="btn btn-sm btn-primary" href="{% url 'reports:approval' b.pk %}">Report</a>

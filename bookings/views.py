@@ -48,7 +48,12 @@ MASTER_CONFIG = {
     "submitter": {"model": SubmitterMaster, "form": SubmitterMasterForm, "title": "Submitter Master"},
     "manufacturer": {"model": ManufacturerMaster, "form": ManufacturerMasterForm, "title": "Manufacturer Master"},
     "sample-name": {"model": SampleNameMaster, "form": SampleNameMasterForm, "title": "Sample Name Master"},
-    "test": {"model": TestMaster, "form": TestMasterForm, "title": "Test Master"},
+    "test": {
+        "model": TestMaster,
+        "form": TestMasterForm,
+        "title": "Test Master",
+        "detail_attr": "report_template",
+    },
     "protocol": {"model": ProtocolMaster, "form": ProtocolMasterForm, "title": "Protocol Master"},
     "uom": {"model": UOMMaster, "form": UOMMasterForm, "title": "UOM Master"},
     "remark": {
@@ -80,7 +85,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
 class BookingCreateView(RoleRequiredMixin, PermissionRequiredMixin, CreateView):
     permission_required = "bookings.add_booking"
-    required_roles = ("Analyst", "Admin")
+    required_roles = ("Staff", "Analyst", "Manager", "Admin")
     model = Booking
     form_class = BookingForm
     template_name = "bookings/booking_form.html"
@@ -134,6 +139,7 @@ class BookingCreateView(RoleRequiredMixin, PermissionRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
+        form.instance.updated_by = self.request.user
         try:
             response = super().form_valid(form)
         except DatabaseError:
@@ -153,8 +159,7 @@ class BookingCreateView(RoleRequiredMixin, PermissionRequiredMixin, CreateView):
 
 class BookingUpdateView(RoleRequiredMixin, PermissionRequiredMixin, UpdateView):
     permission_required = "bookings.change_booking"
-    required_roles = ("Admin", "Manager")
-    allow_staff = False
+    required_roles = ("Staff", "Analyst", "Manager", "Admin")
     model = Booking
     form_class = BookingForm
     template_name = "bookings/booking_form.html"
@@ -168,6 +173,7 @@ class BookingUpdateView(RoleRequiredMixin, PermissionRequiredMixin, UpdateView):
         return context
 
     def form_valid(self, form):
+        form.instance.updated_by = self.request.user
         try:
             response = super().form_valid(form)
         except DatabaseError:
@@ -189,7 +195,7 @@ class BookingListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = (
-            Booking.objects.select_related("customer", "sample_name", "created_by")
+            Booking.objects.select_related("customer", "sample_name", "created_by", "updated_by", "approved_by")
             .prefetch_related("test_to_be_performed")
             .order_by("-created_at")
         )

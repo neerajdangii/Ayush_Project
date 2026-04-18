@@ -37,7 +37,13 @@ class SampleNameMaster(ActiveMasterModel):
 
 
 class TestMaster(ActiveMasterModel):
-    pass
+    report_template = models.ForeignKey(
+        "reports.ReportTemplate",
+        on_delete=models.SET_NULL,
+        related_name="linked_tests",
+        null=True,
+        blank=True,
+    )
 
 
 class ProtocolMaster(ActiveMasterModel):
@@ -106,6 +112,13 @@ class Booking(models.Model):
 
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="bookings")
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="updated_bookings",
+        null=True,
+        blank=True,
+    )
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -115,6 +128,7 @@ class Booking(models.Model):
     )
     approved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -173,12 +187,20 @@ class Booking(models.Model):
     def approve(self, user):
         self.status = self.Status.APPROVED
         self.approved_by = user
+        self.updated_by = user
         self.approved_at = timezone.now()
-        self.save(update_fields=["status", "approved_by", "approved_at"])
+        self.save(update_fields=["status", "approved_by", "updated_by", "approved_at", "updated_at"])
         # Keep report workflow in sync with approved bookings.
         from reports.models import Report
 
         Report.objects.get_or_create(booking=self, defaults={"created_by": user})
+
+    @property
+    def updated_by_display(self) -> str:
+        actor = self.updated_by or self.approved_by or self.created_by
+        if not actor:
+            return "-"
+        return actor.get_full_name() or actor.username
 
     def __str__(self) -> str:
         return self.sample_reg_no or self.tracking_code or f"Booking-{self.pk}"

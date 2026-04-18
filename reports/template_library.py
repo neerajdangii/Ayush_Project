@@ -1,5 +1,32 @@
 VITAMIN_ANALYSIS_REPORT_NAME = "Vitamin Analysis Report"
 
+GENERIC_RESULT_ROW_TEMPLATE = """
+<tr>
+  <td style="text-align:center;">{serial}</td>
+  <td>{test_name}</td>
+  <td style="text-align:center;">&nbsp;</td>
+  <td style="text-align:center;">&nbsp;</td>
+  <td style="text-align:center;">&nbsp;</td>
+</tr>
+""".strip()
+
+GENERIC_RESULT_TABLE_TEMPLATE = """
+<table style="width:100%;border-collapse:collapse;" border="1">
+  <thead>
+    <tr>
+      <th style="width:8%;text-align:center;">S.No.</th>
+      <th style="width:32%;text-align:center;">Test Parameters</th>
+      <th style="width:25%;text-align:center;">Results/Observation</th>
+      <th style="width:20%;text-align:center;">Specification/Limits</th>
+      <th style="width:15%;text-align:center;">Method</th>
+    </tr>
+  </thead>
+  <tbody>
+    {rows}
+  </tbody>
+</table>
+""".strip()
+
 VITAMIN_ANALYSIS_REPORT_HTML = """
 <p><em>{{non_nabl_section_started}}</em></p>
 <table class="border doNotRemove">
@@ -181,3 +208,15 @@ VITAMIN_ANALYSIS_REPORT_HTML = """
   </tbody>
 </table>
 """.strip()
+
+
+def build_generic_result_table(test_names):
+    names = [str(name).strip() for name in (test_names or []) if str(name).strip()]
+    if not names:
+        names = ["Parameter Name"]
+
+    rows = "\n".join(
+        GENERIC_RESULT_ROW_TEMPLATE.format(serial=index, test_name=name)
+        for index, name in enumerate(names, start=1)
+    )
+    return GENERIC_RESULT_TABLE_TEMPLATE.format(rows=rows)

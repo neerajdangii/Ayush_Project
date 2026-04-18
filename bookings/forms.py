@@ -265,8 +265,28 @@ class SampleNameMasterForm(MasterForm):
 
 
 class TestMasterForm(MasterForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        current_template_id = getattr(self.instance, "report_template_id", None)
+        from reports.models import ReportTemplate
+
+        self.fields["report_template"].queryset = ReportTemplate.objects.filter(
+            is_active=True
+        ) | ReportTemplate.objects.filter(pk=current_template_id)
+        self.fields["report_template"].queryset = self.fields["report_template"].queryset.distinct().order_by("name")
+        self.fields["report_template"].required = False
+        self.fields["report_template"].help_text = (
+            "Optional. If selected, this template is auto-added in the COA editor when this test is booked."
+        )
+
     class Meta(MasterForm.Meta):
         model = TestMaster
+        fields = ["name", "report_template", "is_active"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "report_template": forms.Select(attrs={"class": "form-select"}),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
 
 
 class ProtocolMasterForm(MasterForm):

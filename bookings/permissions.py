@@ -9,7 +9,7 @@ def has_role(user, role_name: str) -> bool:
 
 class RoleRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     required_roles = ()
-    allow_staff = True
+    allow_staff = False
 
     def test_func(self):
         user = self.request.user

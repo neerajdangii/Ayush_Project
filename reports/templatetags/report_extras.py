@@ -18,6 +18,18 @@ def has_role(user, role_name: str) -> bool:
 
 
 @register.filter
+def has_any_role(user, role_names: str) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    names = [name.strip() for name in (role_names or "").split(",") if name.strip()]
+    if not names:
+        return False
+    return user.groups.filter(name__in=names).exists()
+
+
+@register.filter
 def date_or_datetime(value, arg="date"):
     if not value:
         return "-"

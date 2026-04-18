@@ -1,4 +1,4 @@
-{% load static %}
+{% load static report_extras %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -23,10 +23,16 @@
           <button type="button" class="nav-icon-btn" id="navReloadBtn" aria-label="Reload page">&#8635;</button>
         </div>
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          {% if user|has_any_role:"Staff,Manager,Analyst,Admin" %}
           <li class="nav-item"><a class="nav-link" href="{% url 'bookings:create' %}">New Booking</a></li>
+          {% endif %}
           <li class="nav-item"><a class="nav-link" href="{% url 'bookings:list' %}">Bookings</a></li>
+          {% if user|has_any_role:"Manager,Incharge,Analyst,Admin" %}
           <li class="nav-item"><a class="nav-link" href="{% url 'reports:list' %}">Reports</a></li>
+          {% endif %}
+          {% if user|has_any_role:"Admin,Manager,Analyst" %}
           <li class="nav-item"><a class="nav-link" href="{% url 'bookings:master_list' 'customer' %}">Masters</a></li>
+          {% endif %}
           {% if user.is_superuser %}
           <li class="nav-item"><a class="nav-link" href="{% url 'accounts:user_list' %}">Users</a></li>
           {% endif %}
