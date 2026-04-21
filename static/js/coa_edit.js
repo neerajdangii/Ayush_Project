@@ -335,18 +335,115 @@
     }
 
     const oldReportScript = document.getElementById('old-report-options-data');
+    const oldReportSearchInput = document.getElementById('id_old_report_search');
+    const oldReportPickerWrap = document.getElementById('coaOldReportPicker');
+    const oldReportDropdown = document.getElementById('coaOldReportDropdown');
+    const oldReportOptionsList = document.getElementById('coaOldReportOptions');
     const oldReportSelect = document.getElementById('id_old_report_source');
     const applyOldReportButton = document.getElementById('apply-old-report-data');
     const reportApiDetailUrlNode = document.getElementById('report-api-detail-url');
-    if (oldReportScript && oldReportSelect && applyOldReportButton && reportApiDetailUrlNode) {
+    if (
+      oldReportScript &&
+      oldReportSearchInput &&
+      oldReportPickerWrap &&
+      oldReportDropdown &&
+      oldReportOptionsList &&
+      oldReportSelect &&
+      applyOldReportButton &&
+      reportApiDetailUrlNode
+    ) {
       try {
         const oldReports = JSON.parse(oldReportScript.textContent);
         const reportApiDetailUrlPattern = JSON.parse(reportApiDetailUrlNode.textContent || '""');
+        const normalizeText = (value) => (value || '').trim().toLowerCase();
 
-        applyOldReportButton.addEventListener('click', () => {
-          const selected = oldReports.find((item) => String(item.id) === oldReportSelect.value);
+        const buildOldReportLabel = (item) => {
+          const sampleName = (item.sample_name || '').trim() || 'Sample';
+          const customerName = (item.customer_name || '').trim() || 'Customer';
+          const batchNo = (item.batch_no || '').trim() || '-';
+          return `${sampleName} | ${customerName} | ${batchNo}`;
+        };
+
+        const buildOldReportMeta = (item) => {
+          const details = [];
+          if (item.updated_at) {
+            details.push(item.updated_at);
+          }
+          return details.join(' | ');
+        };
+
+        const openOldReportDropdown = () => {
+          oldReportDropdown.classList.remove('d-none');
+        };
+
+        const closeOldReportDropdown = () => {
+          oldReportDropdown.classList.add('d-none');
+        };
+
+        const syncOldReportSearchValue = () => {
+          const selected = oldReports.find((item) => String(item.id) === String(oldReportSelect.value));
+          oldReportSearchInput.value = selected ? (selected.sample_name || '').trim() : '';
+        };
+
+        const renderOldReportOptions = (term) => {
+          const normalizedTerm = normalizeText(term);
+          const filtered = oldReports.filter((item) => {
+            const searchableText = normalizeText([
+              item.sample_name,
+              item.customer_name,
+              item.batch_no,
+            ].join(' '));
+            return !normalizedTerm || searchableText.includes(normalizedTerm);
+          });
+
+          oldReportOptionsList.innerHTML = '';
+
+          if (!filtered.length) {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'coa-old-report-picker__empty';
+            emptyState.textContent = 'No matching previous reports found.';
+            oldReportOptionsList.appendChild(emptyState);
+            return;
+          }
+
+          filtered.forEach((item) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'coa-old-report-picker__option';
+            button.dataset.value = String(item.id);
+            const title = document.createElement('strong');
+            title.textContent = buildOldReportLabel(item);
+            button.appendChild(title);
+
+            const meta = buildOldReportMeta(item);
+            if (meta) {
+              const metaText = document.createElement('span');
+              metaText.className = 'coa-old-report-picker__meta';
+              metaText.textContent = meta;
+              button.appendChild(metaText);
+            }
+            if (String(oldReportSelect.value) === String(item.id)) {
+              button.classList.add('is-selected');
+            }
+            oldReportOptionsList.appendChild(button);
+          });
+        };
+
+        const selectOldReport = (selectedValue) => {
+          const selected = oldReports.find((item) => String(item.id) === String(selectedValue));
           if (!selected) {
-            alert('Please select previous sample data first.');
+            return null;
+          }
+          oldReportSelect.value = String(selected.id);
+          syncOldReportSearchValue();
+          renderOldReportOptions('');
+          closeOldReportDropdown();
+          return selected;
+        };
+
+        const fetchAndApplyOldReport = (selected) => {
+          if (!selected) {
+            alert('No previous report found for this sample name and company.');
             return;
           }
 
@@ -393,6 +490,57 @@
             .finally(() => {
               applyOldReportButton.disabled = false;
             });
+        };
+
+        renderOldReportOptions('');
+        oldReportSelect.value = '';
+        oldReportSearchInput.value = '';
+
+        oldReportSearchInput.addEventListener('focus', () => {
+          renderOldReportOptions(oldReportSearchInput.value);
+          openOldReportDropdown();
+        });
+
+        oldReportSearchInput.addEventListener('click', () => {
+          renderOldReportOptions(oldReportSearchInput.value);
+          openOldReportDropdown();
+        });
+
+        oldReportSearchInput.addEventListener('input', () => {
+          oldReportSelect.value = '';
+          renderOldReportOptions(oldReportSearchInput.value);
+          openOldReportDropdown();
+        });
+
+        oldReportSearchInput.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            closeOldReportDropdown();
+          } else if (event.key === 'Enter') {
+            const firstOption = oldReportOptionsList.querySelector('.coa-old-report-picker__option');
+            if (firstOption) {
+              event.preventDefault();
+              selectOldReport(firstOption.dataset.value);
+            }
+          }
+        });
+
+        oldReportOptionsList.addEventListener('click', (event) => {
+          const optionButton = event.target.closest('.coa-old-report-picker__option');
+          if (!optionButton) {
+            return;
+          }
+          selectOldReport(optionButton.dataset.value);
+        });
+
+        document.addEventListener('click', (event) => {
+          if (!oldReportPickerWrap.contains(event.target)) {
+            closeOldReportDropdown();
+          }
+        });
+
+        applyOldReportButton.addEventListener('click', () => {
+          const latestMatchingReport = oldReports[0] || null;
+          fetchAndApplyOldReport(latestMatchingReport);
         });
       } catch (err) {
         console.error('Unable to parse old report list', err);

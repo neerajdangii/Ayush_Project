@@ -228,10 +228,14 @@ class COAEditView(PermissionRequiredMixin, RoleRequiredMixin, UpdateView):
         templates = ReportTemplate.objects.filter(is_active=True).select_related("sample_name", "protocol")
         previous_reports = Report.objects.none()
         sample_name_id = getattr(self.object.booking, "sample_name_id", None)
-        if sample_name_id:
+        customer_id = getattr(self.object.booking, "customer_id", None)
+        if sample_name_id and customer_id:
             previous_reports = (
                 Report.objects.select_related("booking")
-                .filter(booking__sample_name_id=sample_name_id)
+                .filter(
+                    booking__sample_name_id=sample_name_id,
+                    booking__customer_id=customer_id,
+                )
                 .exclude(pk=self.object.pk)
                 .exclude(ceo_content="")
                 .order_by("-updated_at", "-created_at")
@@ -268,6 +272,10 @@ class COAEditView(PermissionRequiredMixin, RoleRequiredMixin, UpdateView):
         context["old_report_options"] = [
             {
                 "id": report.pk,
+                "sample_name": report.booking.sample_name.name if report.booking.sample_name else "",
+                "customer_name": report.booking.customer.name if report.booking.customer else "",
+                "batch_no": report.booking.batch_no or "",
+                "tracking_code": report.booking.tracking_code,
                 "sample_reg_no": report.booking.sample_reg_no,
                 "certificate_no": report.certificate_no,
                 "updated_at": timezone.localtime(report.updated_at).strftime("%d/%m/%Y %I:%M %p")

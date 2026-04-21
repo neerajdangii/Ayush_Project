@@ -100,15 +100,27 @@
       <div class="coa-meta-row">
         <div class="coa-meta-field">
           <label for="id_old_report_source">Get Old Data</label>
-          <select class="form-select" id="id_old_report_source">
+          <div class="coa-old-report-picker" id="coaOldReportPicker">
+            <input
+              type="text"
+              class="form-control"
+              id="id_old_report_search"
+              placeholder="Type sample name"
+              autocomplete="off"
+            >
+            <div class="coa-old-report-picker__dropdown d-none" id="coaOldReportDropdown">
+              <div class="coa-old-report-picker__list" id="coaOldReportOptions"></div>
+            </div>
+          </div>
+          <select class="form-select d-none" id="id_old_report_source">
             <option value="">Select previous same-sample report</option>
             {% for old_report in old_report_options %}
             <option value="{{ old_report.id }}">
-              {{ old_report.sample_reg_no }} | {{ old_report.certificate_no }} | {{ old_report.updated_at }}
+              {{ old_report.sample_name }} | {{ old_report.customer_name }} | {{ old_report.tracking_code }} | {{ old_report.updated_at }}
             </option>
             {% endfor %}
           </select>
-          <small>Loads only the previous result table from an older report with the same sample name.</small>
+          <small>The button loads the latest old report for this same sample name and customer/company. Search stays available if you want to review matches.</small>
         </div>
         <div class="coa-meta-field d-flex align-items-end gap-2">
           <button class="btn btn-outline-primary" type="button" id="apply-old-report-data">Get Old Data</button>
@@ -179,14 +191,30 @@
 {{ old_report_options|json_script:"old-report-options-data" }}
 <script id="report-api-detail-url" type="application/json">"{% url 'reports:report_api_detail' 0 %}"</script>
 
-<script src="{% static 'js/coa_edit.js' %}?v=20260416-2"></script>
+<script src="{% static 'js/coa_edit.js' %}?v=20260421-1"></script>
 
 <style>
   .coa-remark-picker {
     position: relative;
   }
 
+  .coa-old-report-picker {
+    position: relative;
+  }
+
   .coa-remark-picker__dropdown {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    z-index: 40;
+    background: #fff;
+    border: 1px solid #cfd4da;
+    border-radius: 4px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  }
+
+  .coa-old-report-picker__dropdown {
     position: absolute;
     top: calc(100% + 2px);
     left: 0;
@@ -203,6 +231,11 @@
     overflow-y: auto;
   }
 
+  .coa-old-report-picker__list {
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
   .coa-remark-picker__option,
   .coa-remark-picker__empty {
     width: 100%;
@@ -211,7 +244,22 @@
     text-align: left;
   }
 
+  .coa-old-report-picker__option,
+  .coa-old-report-picker__empty {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    text-align: left;
+  }
+
   .coa-remark-picker__option {
+    border: 0;
+    border-bottom: 1px solid #eef2f7;
+    background: #fff;
+    cursor: pointer;
+  }
+
+  .coa-old-report-picker__option {
     border: 0;
     border-bottom: 1px solid #eef2f7;
     background: #fff;
@@ -226,9 +274,29 @@
     outline: none;
   }
 
+  .coa-old-report-picker__option:hover,
+  .coa-old-report-picker__option:focus,
+  .coa-old-report-picker__option.is-selected {
+    background: #e8f0fe;
+    color: #1d4ed8;
+    outline: none;
+  }
+
   .coa-remark-picker__empty {
     color: #64748b;
     background: #f8fafc;
+  }
+
+  .coa-old-report-picker__empty {
+    color: #64748b;
+    background: #f8fafc;
+  }
+
+  .coa-old-report-picker__meta {
+    display: block;
+    margin-top: 2px;
+    color: #64748b;
+    font-size: 12px;
   }
 </style>
 

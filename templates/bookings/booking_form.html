@@ -258,6 +258,8 @@
 (function () {
   const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
   const bookingForm = document.getElementById('bookingForm');
+  const duplicateId = '{{ duplicate_id|default:""|escapejs }}';
+  const isDuplicateMode = Boolean(duplicateId);
   const modalElement = document.getElementById('inlineMasterModal');
   const modal = new bootstrap.Modal(modalElement);
   const nameInput = document.getElementById('inlineMasterName');
@@ -277,6 +279,27 @@
   let activeDateInput = null;
   let viewDate = null;
   let selectedPickerDate = null;
+  const dirtyFields = new Set();
+
+  function trackFieldChanges(field) {
+    if (!field) {
+      return;
+    }
+    const markDirty = () => {
+      dirtyFields.add(field.id);
+    };
+    field.addEventListener('input', markDirty);
+    field.addEventListener('change', markDirty);
+  }
+
+  function setFieldValue(fieldId, value) {
+    const field = document.getElementById(fieldId);
+    if (!field || value === undefined || value === null || dirtyFields.has(fieldId)) {
+      return;
+    }
+    field.value = value;
+    field.dispatchEvent(new Event('change', { bubbles: true }));
+  }
 
   function updateCustomerAddressPreview() {
     if (!customerSelect || !customerAddressPreview) {
@@ -1242,8 +1265,38 @@
     }
   });
 
+  [
+    'id_sample_name',
+    'id_customer',
+    'id_submitter',
+    'id_manufacturer',
+    'id_sample_type',
+    'id_protocol',
+    'id_uom',
+    'id_booking_type',
+    'id_sample_qty',
+    'id_sample_location',
+    'id_packaging_mode',
+    'id_sample_condition',
+    'id_batch_no',
+    'id_batch_size',
+    'id_manufacture_date',
+    'id_expiry_retest_date',
+    'id_license_no',
+    'id_customer_sr_no',
+    'id_collected_by_name',
+    'id_sampling_procedure',
+    'id_remarks'
+  ].forEach((fieldId) => {
+    trackFieldChanges(document.getElementById(fieldId));
+  });
+
   // Auto-populate form from previous booking with same sample & customer
   async function loadPreviousBookingData() {
+    if (!isDuplicateMode) {
+      return;
+    }
+
     const sampleNameSelect = document.getElementById('id_sample_name');
     const customerSelect = document.getElementById('id_customer');
     
@@ -1261,31 +1314,34 @@
       const data = await response.json();
       
       if (data.found) {
-        // Populate fields from previous booking
-        const fields = [
-          'submitter', 'manufacturer', 'sample_type', 'protocol', 'uom', 'booking_type',
-          'sample_qty', 'sample_location', 'packaging_mode', 'sample_condition',
-          'batch_no', 'batch_size', 'license_no', 'customer_sr_no',
-          'collected_by_name', 'sampling_procedure', 'remarks'
-        ];
-        
-        fields.forEach(fieldName => {
-          const field = document.getElementById(`id_${fieldName}`);
-          if (field && data[fieldName]) {
-            field.value = data[fieldName];
-            field.dispatchEvent(new Event('change', { bubbles: true }));
+        const fieldMappings = {
+          id_submitter: data.submitter_id,
+          id_manufacturer: data.manufacturer_id,
+          id_sample_type: data.sample_type,
+          id_protocol: data.protocol_id,
+          id_uom: data.uom_id,
+          id_booking_type: data.booking_type,
+          id_sample_qty: data.sample_qty,
+          id_sample_location: data.sample_location,
+          id_packaging_mode: data.packaging_mode,
+          id_sample_condition: data.sample_condition,
+          id_batch_no: data.batch_no,
+          id_batch_size: data.batch_size,
+          id_license_no: data.license_no,
+          id_customer_sr_no: data.customer_sr_no,
+          id_collected_by_name: data.collected_by_name,
+          id_sampling_procedure: data.sampling_procedure,
+          id_remarks: data.remarks
+        };
+
+        Object.entries(fieldMappings).forEach(([fieldId, value]) => {
+          if (value !== '') {
+            setFieldValue(fieldId, value);
           }
         });
         
-        // Populate date fields
-        if (data.manufacture_date) {
-          document.getElementById('id_manufacture_date').value = data.manufacture_date;
-        }
-        if (data.expiry_retest_date) {
-          document.getElementById('id_expiry_retest_date').value = data.expiry_retest_date;
-        }
-        
-        // Silent load - no notification shown
+        setFieldValue('id_manufacture_date', data.manufacture_date);
+        setFieldValue('id_expiry_retest_date', data.expiry_retest_date);
       }
     } catch (error) {
       console.error('Error loading previous booking data:', error);
