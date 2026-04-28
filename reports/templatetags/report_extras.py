@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import re
 
 from django import template
 from django.utils import timezone
@@ -44,3 +45,10 @@ def date_or_datetime(value, arg="date"):
         return value.strftime("%d/%m/%Y")
 
     return value
+
+
+@register.filter
+def single_line(value):
+    if value is None:
+        return ""
+    return re.sub(r"\s+", " ", str(value)).strip()

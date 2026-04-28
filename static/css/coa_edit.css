@@ -139,6 +139,11 @@
   width: 100% !important;
 }
 
+.coa-result .tox .tox-edit-area {
+  height: 68vh !important;
+  overflow: hidden !important;
+}
+
 .coa-result .tox .tox-edit-area__iframe,
 .coa-result .tox .tox-edit-area {
   min-height: 68vh !important;

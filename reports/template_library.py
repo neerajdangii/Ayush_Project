@@ -1,3 +1,6 @@
+import re
+from html import escape
+
 VITAMIN_ANALYSIS_REPORT_NAME = "Vitamin Analysis Report"
 
 GENERIC_RESULT_ROW_TEMPLATE = """
@@ -232,3 +235,52 @@ def build_tests_without_templates_table(tests):
         for index, test in enumerate(tests, start=1)
     )
     return GENERIC_RESULT_TABLE_TEMPLATE.format(rows=rows)
+
+
+COMPOSITION_MARKER_RE = re.compile(r"COMPOSITION", re.IGNORECASE)
+TBODY_RE = re.compile(r"(<tbody[^>]*>)(.*?)(</tbody>)", re.IGNORECASE | re.DOTALL)
+ROW_RE = re.compile(r"<tr\b[^>]*>.*?</tr>", re.IGNORECASE | re.DOTALL)
+
+
+def _build_template_main_row(serial, test_name):
+    return (
+        "<tr>"
+        f'<td style="text-align: center;"><span style="font-family: helvetica, arial, sans-serif;">{serial}</span></td>'
+        f"<td>{escape(test_name)}</td>"
+        '<td colspan="2">&nbsp;</td>'
+        '<td colspan="2">&nbsp;</td>'
+        "</tr>"
+    )
+
+
+def populate_main_table_rows(template_html, test_names):
+    names = [str(name).strip() for name in (test_names or []) if str(name).strip()]
+    if not template_html or not names:
+        return template_html
+
+    tbody_match = TBODY_RE.search(template_html)
+    if not tbody_match:
+        return template_html
+
+    tbody_inner = tbody_match.group(2)
+    rows = ROW_RE.findall(tbody_inner)
+    if not rows:
+        return template_html
+
+    composition_index = next(
+        (index for index, row in enumerate(rows) if COMPOSITION_MARKER_RE.search(re.sub(r"<[^>]+>", " ", row))),
+        None,
+    )
+    if composition_index is None:
+        return template_html
+
+    header_rows = rows[:1]
+    composition_and_after = rows[composition_index:]
+    dynamic_rows = [_build_template_main_row(index, name) for index, name in enumerate(names, start=1)]
+    new_tbody = "\n".join(header_rows + dynamic_rows + composition_and_after)
+
+    return (
+        template_html[:tbody_match.start(2)]
+        + new_tbody
+        + template_html[tbody_match.end(2):]
+    )

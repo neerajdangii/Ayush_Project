@@ -5,6 +5,7 @@ from .views import (
     COAPDFView,
     COAPlainDocumentView,
     COAPrintView,
+    PublicCOAPrintView,
     ReportTemplateCreateView,
     ReportTemplateApiListView,
     ReportTemplateContentView,
@@ -30,6 +31,7 @@ urlpatterns = [
     path("booking/<int:booking_pk>/", ReportCreateOrUpdateView.as_view(), name="approval"),
     path("<int:pk>/coa/edit/", COAEditView.as_view(), name="coa_edit"),
     path("<int:pk>/coa/print/", COAPrintView.as_view(), name="coa_print"),
+    path("public/<int:pk>/", PublicCOAPrintView.as_view(), name="coa_public"),
     path("<int:pk>/coa/doc/", COAPlainDocumentView.as_view(), name="coa_doc"),
     path("<int:pk>/coa/pdf/", COAPDFView.as_view(), name="coa_pdf"),
 ]

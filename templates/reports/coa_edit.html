@@ -82,7 +82,7 @@
         <div class="coa-meta-field">
           <label for="id_report_template">Report Template</label>
           {{ form.report_template }}
-          <small>Pick a saved result template for this sample and load it into the editor.</small>
+          <small>The default template is loaded automatically when this page opens.</small>
           {% if selected_test_templates %}
           <small class="d-block mt-1">
             Auto-linked from selected tests:
@@ -92,8 +92,7 @@
           </small>
           {% endif %}
         </div>
-        <div class="coa-meta-field d-flex align-items-end gap-2">
-          <button class="btn btn-outline-primary" type="button" id="apply-report-template">Load Template</button>
+        <div class="coa-meta-field d-flex align-items-end gap-2 justify-content-end">
           <a class="btn btn-outline-secondary" href="{% url 'reports:template_list' %}">Manage Templates</a>
         </div>
       </div>
@@ -186,8 +185,6 @@
 {% block extra_js %}
 
 {{ remark_options|json_script:"remark-options-data" }}
-{{ template_options|json_script:"report-template-options-data" }}
-<script id="report-template-content-url" type="application/json">"{% url 'reports:template_content' 0 %}"</script>
 {{ old_report_options|json_script:"old-report-options-data" }}
 <script id="report-api-detail-url" type="application/json">"{% url 'reports:report_api_detail' 0 %}"</script>
 

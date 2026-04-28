@@ -3,7 +3,7 @@ from django.db.models import Q
 from django.contrib.auth import get_user_model
 
 from .models import Report, ReportRemark, ReportTemplate
-from .template_library import build_generic_result_table
+from .template_library import build_generic_result_table, populate_main_table_rows
 
 DATE_FORMAT_DMY = "%d/%m/%Y"
 DATE_INPUT_FORMAT = "%Y-%m-%d"
@@ -28,6 +28,7 @@ class ReportApprovalForm(forms.ModelForm):
                 "data-picker-kind": "date",
                 "data-close-on-pick": "1",
                 "autocomplete": "off",
+                "title": "",
             },
         ),
     )
@@ -42,6 +43,7 @@ class ReportApprovalForm(forms.ModelForm):
                 "data-picker-kind": "date",
                 "data-close-on-pick": "1",
                 "autocomplete": "off",
+                "title": "",
             },
         ),
     )
@@ -105,7 +107,7 @@ class COAEditForm(forms.ModelForm):
         if existing_content:
             self.initial["ceo_content"] = existing_content
         else:
-            self.fields["ceo_content"].initial = self._build_default_content(selected_template)
+            self.initial["ceo_content"] = self._build_default_content(selected_template)
 
     def _selected_tests(self):
         if not self.instance or not getattr(self.instance, "booking", None):
@@ -114,34 +116,51 @@ class COAEditForm(forms.ModelForm):
             self.instance.booking.test_to_be_performed.select_related("report_template").order_by("name")
         )
 
+    def _has_assay_test(self, tests=None):
+        selected_tests = tests if tests is not None else self._selected_tests()
+        return any((test.name or "").strip().lower() == "assay" for test in selected_tests)
+
     def _build_default_content(self, selected_template=None):
         tests = self._selected_tests()
-        plain_test_names = []
+        selected_test_names = []
         template_html_blocks = []
         seen_template_ids = set()
+        has_assay_test = self._has_assay_test(tests)
 
         for test in tests:
+            if (test.name or "").strip():
+                selected_test_names.append(test.name.strip())
+
             template = getattr(test, "report_template", None)
-            if template and template.is_active and template.content.strip():
+            if (
+                has_assay_test
+                and (test.name or "").strip().lower() == "assay"
+                and template
+                and template.is_active
+                and template.content.strip()
+            ):
                 if template.pk not in seen_template_ids:
                     template_html_blocks.append(template.content.strip())
                     seen_template_ids.add(template.pk)
-            else:
-                plain_test_names.append(test.name)
 
         content_blocks = []
-        if plain_test_names:
-            content_blocks.append(build_generic_result_table(plain_test_names))
-
-        if selected_template and selected_template.is_active and selected_template.content.strip():
+        if (
+            selected_template
+            and selected_template.is_active
+            and selected_template.content.strip()
+        ):
             if selected_template.pk not in seen_template_ids:
-                content_blocks.append(selected_template.content.strip())
+                populated_template = populate_main_table_rows(
+                    selected_template.content.strip(),
+                    selected_test_names,
+                )
+                content_blocks.append(populated_template)
                 seen_template_ids.add(selected_template.pk)
 
         content_blocks.extend(template_html_blocks)
 
         if not content_blocks:
-            return build_generic_result_table([])
+            return build_generic_result_table(selected_test_names)
 
         return "\n<p>&nbsp;</p>\n".join(content_blocks)
 
@@ -150,6 +169,16 @@ class COAEditForm(forms.ModelForm):
             return None
 
         booking = self.instance.booking
+        queryset = ReportTemplate.objects.filter(is_active=True)
+        default_template = queryset.filter(is_default=True).first()
+
+        if default_template:
+            return default_template
+
+        tests = self._selected_tests()
+        if not self._has_assay_test(tests):
+            return None
+
         test_template = (
             booking.test_to_be_performed.filter(report_template__is_active=True)
             .select_related("report_template")
@@ -159,8 +188,6 @@ class COAEditForm(forms.ModelForm):
         if test_template and test_template.report_template_id:
             return test_template.report_template
 
-        queryset = ReportTemplate.objects.filter(is_active=True)
-        default_template = queryset.filter(is_default=True).first()
         if booking.sample_name_id and booking.protocol_id:
             exact = queryset.filter(sample_name_id=booking.sample_name_id, protocol_id=booking.protocol_id).first()
             if exact:
@@ -224,22 +251,24 @@ class COAEditForm(forms.ModelForm):
 class ReportTemplateForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["sample_name"].queryset = self.fields["sample_name"].queryset.filter(is_active=True)
-        self.fields["protocol"].queryset = self.fields["protocol"].queryset.filter(is_active=True)
 
     def clean(self):
         cleaned_data = super().clean()
         if cleaned_data.get("is_default"):
             cleaned_data["is_active"] = True
+        
+        # Validate that content is not empty (only on new templates)
+        content = cleaned_data.get("content", "").strip()
+        if not self.instance.pk and (not content or content == ""):
+            raise forms.ValidationError("Template content cannot be empty. Please add content to your template.")
+        
         return cleaned_data
 
     class Meta:
         model = ReportTemplate
-        fields = ["name", "sample_name", "protocol", "description", "content", "is_active", "is_default"]
+        fields = ["name", "description", "content", "is_active", "is_default"]
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control"}),
-            "sample_name": forms.Select(attrs={"class": "form-select"}),
-            "protocol": forms.Select(attrs={"class": "form-select"}),
             "description": forms.TextInput(attrs={"class": "form-control"}),
             "content": forms.Textarea(
                 attrs={
@@ -253,4 +282,5 @@ class ReportTemplateForm(forms.ModelForm):
         }
 
     def clean_content(self):
-        return (self.cleaned_data.get("content") or "").strip()
+        content = self.cleaned_data.get("content") or ""
+        return content.strip() if isinstance(content, str) else content

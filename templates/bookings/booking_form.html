@@ -255,7 +255,7 @@
 
 {% block extra_js %}
 <script>
-(function () {
+document.addEventListener('DOMContentLoaded', function () {
   const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
   const bookingForm = document.getElementById('bookingForm');
   const duplicateId = '{{ duplicate_id|default:""|escapejs }}';
@@ -276,6 +276,14 @@
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
   const weekdayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const calendarIconMarkup = `
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+      <rect x="3" y="4" width="18" height="17" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"></rect>
+      <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="2"></line>
+      <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2"></line>
+      <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2"></line>
+    </svg>
+  `;
   let activeDateInput = null;
   let viewDate = null;
   let selectedPickerDate = null;
@@ -297,7 +305,12 @@
     if (!field || value === undefined || value === null || dirtyFields.has(fieldId)) {
       return;
     }
-    field.value = value;
+    if (field.classList.contains('booking-date-input')) {
+      const normalized = normalizePickerInputValue(field, value);
+      field.value = normalized !== null ? normalized : value;
+    } else {
+      field.value = value;
+    }
     field.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
@@ -586,6 +599,31 @@
       : parseDate(input.value);
   }
 
+  function parseIsoDate(value) {
+    const raw = (value || '').trim();
+    if (!raw) {
+      return null;
+    }
+    const normalized = raw.replace(' ', 'T');
+    const date = new Date(normalized);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function normalizePickerInputValue(input, value) {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return '';
+    }
+    const parsed = input.dataset.pickerKind === 'datetime'
+      ? (parseDateTime(raw) || parseIsoDate(raw))
+      : (parseDate(raw) || parseIsoDate(raw));
+
+    if (!parsed) {
+      return raw;
+    }
+    return formatInputValue(parsed, input);
+  }
+
   function formatInputValue(date, input) {
     return input.dataset.pickerKind === 'datetime'
       ? formatDateTime(date)
@@ -822,6 +860,9 @@
   }
 
   document.querySelectorAll('.booking-date-input').forEach((input) => {
+    input.value = normalizePickerInputValue(input, input.value);
+    input.title = '';
+
     if (input.parentElement && input.parentElement.classList.contains('booking-date-field')) {
       return;
     }
@@ -830,6 +871,19 @@
     wrapper.className = 'booking-date-field';
     input.parentNode.insertBefore(wrapper, input);
     wrapper.appendChild(input);
+
+    const triggerButton = document.createElement('button');
+    triggerButton.type = 'button';
+    triggerButton.className = 'booking-date-field__button';
+    triggerButton.title = 'Open date picker';
+    triggerButton.innerHTML = calendarIconMarkup;
+    wrapper.appendChild(triggerButton);
+
+    triggerButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openDatepicker(input);
+    });
 
     wrapper.addEventListener('click', () => {
       openDatepicker(input);
@@ -1366,7 +1420,7 @@
       });
     });
   }
-})();
+});
 </script>
 <style>
   .booking-customer-address {

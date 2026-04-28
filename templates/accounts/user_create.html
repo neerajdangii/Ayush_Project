@@ -6,8 +6,16 @@
     <h5 class="mb-0">Create User</h5>
   </div>
   <div class="card-body">
-    <form method="post" class="row g-3" enctype="multipart/form-data">
+    <form method="post" action="" class="row g-3" enctype="multipart/form-data">
       {% csrf_token %}
+
+      {% if form.non_field_errors %}
+      <div class="col-12">
+        <div class="alert alert-danger mb-0">
+          {{ form.non_field_errors }}
+        </div>
+      </div>
+      {% endif %}
 
       <div class="col-md-6">
         <label class="form-label" for="id_username">Username</label>
@@ -60,6 +68,11 @@
         <label class="form-check-label" for="id_is_person_incharge">Person In-charge</label>
       </div>
 
+      <div class="col-md-3 form-check mt-4 ms-3">
+        {{ form.can_edit_masters }}
+        <label class="form-check-label" for="id_can_edit_masters">Master Edit Access</label>
+      </div>
+
       <div class="col-md-12">
         <label class="form-label" for="id_signature_file">Signature file (PNG/JPG)</label>
         {{ form.signature_file }}
@@ -69,21 +82,14 @@
 
       <div class="col-md-12">
         <label class="form-label">Other Role Groups</label>
-        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-          {% for choice_value, choice_label in form.groups.field.choices %}
-            <div class="form-check">
-              <input 
-                class="form-check-input" 
-                type="checkbox" 
-                name="groups" 
-                value="{{ choice_value }}" 
-                id="id_groups_{{ choice_value }}"
-                {% if choice_value in form.groups.value %}checked{% endif %}
-              >
-              <label class="form-check-label" for="id_groups_{{ choice_value }}">
-                {{ choice_label }}
-              </label>
-            </div>
+        <div class="d-flex flex-wrap gap-4">
+          {% for checkbox in form.groups %}
+          <div class="form-check">
+            {{ checkbox.tag }}
+            <label class="form-check-label" for="{{ checkbox.id_for_label }}">
+              {{ checkbox.choice_label }}
+            </label>
+          </div>
           {% endfor %}
         </div>
         {{ form.groups.errors }}
@@ -92,20 +98,13 @@
       <div class="col-md-12">
         <label class="form-label">Direct Permissions (Bookings & Reports)</label>
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-top: 10px;">
-          {% for choice_value, choice_label in form.permissions.field.choices %}
-            <div class="form-check">
-              <input 
-                class="form-check-input" 
-                type="checkbox" 
-                name="permissions" 
-                value="{{ choice_value }}" 
-                id="id_permissions_{{ choice_value }}"
-                {% if choice_value in form.permissions.value %}checked{% endif %}
-              >
-              <label class="form-check-label" for="id_permissions_{{ choice_value }}" style="word-break: break-word;">
-                {{ choice_label }}
-              </label>
-            </div>
+          {% for checkbox in form.permissions %}
+          <div class="form-check">
+            {{ checkbox.tag }}
+            <label class="form-check-label" for="{{ checkbox.id_for_label }}" style="word-break: break-word;">
+              {{ checkbox.choice_label }}
+            </label>
+          </div>
           {% endfor %}
         </div>
         {{ form.permissions.errors }}

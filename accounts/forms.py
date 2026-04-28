@@ -5,6 +5,24 @@ from django.contrib.auth.models import Group, Permission, User
 from .models import UserProfile
 
 
+MASTER_PERMISSION_CODENAMES = [
+    "add_customermaster", "change_customermaster", "delete_customermaster", "view_customermaster",
+    "add_submittermaster", "change_submittermaster", "delete_submittermaster", "view_submittermaster",
+    "add_manufacturermaster", "change_manufacturermaster", "delete_manufacturermaster", "view_manufacturermaster",
+    "add_samplenamemaster", "change_samplenamemaster", "delete_samplenamemaster", "view_samplenamemaster",
+    "add_testmaster", "change_testmaster", "delete_testmaster", "view_testmaster",
+    "add_protocolmaster", "change_protocolmaster", "delete_protocolmaster", "view_protocolmaster",
+    "add_uommaster", "change_uommaster", "delete_uommaster", "view_uommaster",
+    "add_reportremark", "change_reportremark", "delete_reportremark", "view_reportremark",
+]
+
+
+def _master_permissions_queryset():
+    return Permission.objects.filter(codename__in=MASTER_PERMISSION_CODENAMES).order_by(
+        "content_type__app_label", "codename"
+    )
+
+
 class LoginForm(AuthenticationForm):
     username = forms.CharField(widget=forms.TextInput(attrs={"class": "form-control"}))
     password = forms.CharField(widget=forms.PasswordInput(attrs={"class": "form-control"}))
@@ -20,6 +38,7 @@ class AdminUserCreateForm(UserCreationForm):
     is_staff = forms.BooleanField(required=False)
     is_checked_by = forms.BooleanField(required=False, label="Checked By")
     is_person_incharge = forms.BooleanField(required=False, label="Person In-charge")
+    can_edit_masters = forms.BooleanField(required=False, label="Master Edit Access")
     signature_file = forms.FileField(required=False)
     first_name = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
     last_name = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
@@ -53,6 +72,7 @@ class AdminUserCreateForm(UserCreationForm):
             "is_staff",
             "is_checked_by",
             "is_person_incharge",
+            "can_edit_masters",
             "signature_file",
             "groups",
             "permissions",
@@ -66,6 +86,7 @@ class AdminUserCreateForm(UserCreationForm):
         self.fields["is_staff"].widget.attrs["class"] = "form-check-input"
         self.fields["is_checked_by"].widget.attrs["class"] = "form-check-input"
         self.fields["is_person_incharge"].widget.attrs["class"] = "form-check-input"
+        self.fields["can_edit_masters"].widget.attrs["class"] = "form-check-input"
         self.fields["signature_file"].widget.attrs["class"] = "form-control"
         self.fields["permissions"].widget.attrs["class"] = "form-check-input"
 
@@ -76,11 +97,16 @@ class AdminUserCreateForm(UserCreationForm):
         user.last_name = (self.cleaned_data.get("last_name") or "").strip()
         checked_by = bool(self.cleaned_data.get("is_checked_by"))
         person_incharge = bool(self.cleaned_data.get("is_person_incharge"))
+        can_edit_masters = bool(self.cleaned_data.get("can_edit_masters"))
         user.is_staff = bool(self.cleaned_data.get("is_staff", False)) or checked_by or person_incharge
         if commit:
             user.save()
             user.groups.set(self.cleaned_data.get("groups"))
-            user.user_permissions.set(self.cleaned_data.get("permissions"))
+            selected_permissions = list(self.cleaned_data.get("permissions") or [])
+            if can_edit_masters:
+                selected_permissions.extend(list(_master_permissions_queryset()))
+            unique_permissions = {permission.pk: permission for permission in selected_permissions}
+            user.user_permissions.set(unique_permissions.values())
             if user.is_staff:
                 staff_group, _ = Group.objects.get_or_create(name="Staff")
                 staff_group.user_set.add(user)
@@ -105,6 +131,7 @@ class AdminUserUpdateForm(forms.ModelForm):
     is_active = forms.BooleanField(required=False)
     is_checked_by = forms.BooleanField(required=False, label="Checked By")
     is_person_incharge = forms.BooleanField(required=False, label="Person In-charge")
+    can_edit_masters = forms.BooleanField(required=False, label="Master Edit Access")
     signature_file = forms.FileField(required=False)
     first_name = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
     last_name = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
@@ -137,6 +164,7 @@ class AdminUserUpdateForm(forms.ModelForm):
             "is_staff",
             "is_checked_by",
             "is_person_incharge",
+            "can_edit_masters",
             "signature_file",
             "groups",
             "permissions",
@@ -152,6 +180,7 @@ class AdminUserUpdateForm(forms.ModelForm):
         self.fields["is_active"].widget.attrs["class"] = "form-check-input"
         self.fields["is_checked_by"].widget.attrs["class"] = "form-check-input"
         self.fields["is_person_incharge"].widget.attrs["class"] = "form-check-input"
+        self.fields["can_edit_masters"].widget.attrs["class"] = "form-check-input"
         self.fields["signature_file"].widget.attrs["class"] = "form-control"
         self.fields["permissions"].widget.attrs["class"] = "form-check-input"
 
@@ -161,6 +190,9 @@ class AdminUserUpdateForm(forms.ModelForm):
             self.fields["is_checked_by"].initial = self.instance.groups.filter(name="Checked By").exists()
             self.fields["is_person_incharge"].initial = self.instance.groups.filter(name="Incharge").exists()
             self.fields["permissions"].initial = self.instance.user_permissions.all()
+            self.fields["can_edit_masters"].initial = self.instance.user_permissions.filter(
+                codename__in=MASTER_PERMISSION_CODENAMES
+            ).exists()
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -170,6 +202,7 @@ class AdminUserUpdateForm(forms.ModelForm):
 
         checked_by = bool(self.cleaned_data.get("is_checked_by"))
         person_incharge = bool(self.cleaned_data.get("is_person_incharge"))
+        can_edit_masters = bool(self.cleaned_data.get("can_edit_masters"))
         user.is_active = bool(self.cleaned_data.get("is_active", True))
         user.is_staff = bool(self.cleaned_data.get("is_staff", False)) or checked_by or person_incharge
 
@@ -202,7 +235,11 @@ class AdminUserUpdateForm(forms.ModelForm):
                 desired_groups = [g for g in desired_groups if g.pk != staff_group.pk]
 
             user.groups.set(desired_groups)
-            user.user_permissions.set(self.cleaned_data.get("permissions"))
+            selected_permissions = list(self.cleaned_data.get("permissions") or [])
+            if can_edit_masters:
+                selected_permissions.extend(list(_master_permissions_queryset()))
+            unique_permissions = {permission.pk: permission for permission in selected_permissions}
+            user.user_permissions.set(unique_permissions.values())
 
             signature_clear = self.data.get("signature_file-clear") == "on"
             signature_file = self.cleaned_data.get("signature_file")

@@ -54,7 +54,7 @@
         toolbar_sticky: true,
         toolbar: 'undo redo | addTest addParameter | blocks fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | outdent indent | bullist numlist | table tabledelete | removeformat code preview',
         font_family_formats: 'Helvetica=helvetica,arial,sans-serif;Times New Roman=times new roman,times,serif;Calibri=calibri,sans-serif;Courier New=courier new,courier,monospace',
-        content_style: 'body{font-family:Helvetica,Arial,sans-serif;font-size:12pt;line-height:1.35;} table{border-collapse:collapse;} table td, table th{border:1px solid #111;padding:6px;}',
+        content_style: 'html,body{height:100%;} body{font-family:Helvetica,Arial,sans-serif;font-size:12pt;line-height:1.35;padding:12px;overflow-y:auto;overscroll-behavior:contain;} table{border-collapse:collapse;} table td, table th{border:1px solid #111;padding:6px;}',
         table_default_attributes: { border: '1', style: 'border-collapse:collapse;width:100%;' },
         table_default_styles: {},
         table_responsive_width: true,
@@ -65,6 +65,24 @@
           };
 
           editor.on('change input undo redo setcontent', syncEditorContent);
+          editor.on('init', () => {
+            const doc = editor.getDoc();
+            if (!doc) {
+              return;
+            }
+
+            doc.addEventListener('wheel', (event) => {
+              const scrollingElement = doc.scrollingElement || doc.documentElement || doc.body;
+              if (!scrollingElement) {
+                return;
+              }
+
+              const maxScrollTop = scrollingElement.scrollHeight - scrollingElement.clientHeight;
+              if (maxScrollTop > 0) {
+                event.stopPropagation();
+              }
+            }, { passive: true });
+          });
 
           editor.ui.registry.addMenuButton('addTest', {
             text: 'Add Test',
@@ -269,68 +287,6 @@
         });
       } catch (err) {
         console.error('Unable to parse remark list', err);
-      }
-    }
-
-    const reportTemplateScript = document.getElementById('report-template-options-data');
-    const reportTemplateSelect = document.getElementById('id_report_template');
-    const applyTemplateButton = document.getElementById('apply-report-template');
-    const templateContentUrlNode = document.getElementById('report-template-content-url');
-    if (reportTemplateScript && reportTemplateSelect && applyTemplateButton && templateContentUrlNode) {
-      try {
-        const reportTemplates = JSON.parse(reportTemplateScript.textContent);
-        const templateContentUrlPattern = JSON.parse(templateContentUrlNode.textContent || '""');
-        applyTemplateButton.addEventListener('click', () => {
-          const selected = reportTemplates.find((item) => String(item.id) === reportTemplateSelect.value);
-          if (!selected) {
-            alert('Please select a template first.');
-            return;
-          }
-
-          const shouldReplace = window.confirm('Load this template into the result section? This will replace the current editor content.');
-          if (!shouldReplace) {
-            return;
-          }
-
-          applyTemplateButton.disabled = true;
-          const requestUrl = templateContentUrlPattern.replace(/0\/$/, `${selected.id}/`);
-
-          fetch(requestUrl, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-          })
-            .then((response) => {
-              if (!response.ok) {
-                throw new Error('Template request failed');
-              }
-              return response.json();
-            })
-            .then((payload) => {
-              const content = payload.content || '';
-              if (window.tinymce) {
-                const editor = window.tinymce.get('editor');
-                if (editor) {
-                  editor.setContent(content);
-                  editor.focus();
-                  return;
-                }
-              }
-
-              const textarea = document.getElementById('editor');
-              if (textarea) {
-                textarea.value = content;
-                textarea.dispatchEvent(new Event('input'));
-              }
-            })
-            .catch((err) => {
-              console.error('Unable to load selected report template', err);
-              alert('Unable to load the selected template.');
-            })
-            .finally(() => {
-              applyTemplateButton.disabled = false;
-            });
-        });
-      } catch (err) {
-        console.error('Unable to parse report template list', err);
       }
     }
 

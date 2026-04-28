@@ -32,9 +32,15 @@ from bookings.permissions import RoleRequiredMixin, has_role
 from .forms import COAEditForm, ReportApprovalForm, ReportTemplateForm
 from .models import Report, ReportRemark, ReportTemplate
 
+
+PUBLIC_REPORT_ALLOWED_STATUSES = {
+    Report.Status.MANAGER_APPROVED,
+    Report.Status.INCHARGE_APPROVED,
+}
+
 def _format_report_date(value, include_time=False, month_year_only=False):
     if not value:
-        return "-"
+        return "N.S."
 
     if isinstance(value, datetime):
         current = timezone.localtime(value) if timezone.is_aware(value) else value
@@ -85,7 +91,7 @@ def _get_report_render_context(report, request, *, preview_mode, auto_print, is_
         "generic_tests_table_html": mark_safe(report.generic_tests_table_html),
     }
 
-    base = reverse("reports:coa_print", kwargs={"pk": report.pk})
+    base = reverse("reports:coa_public", kwargs={"pk": report.pk})
     if is_test_report:
         base += "?doc=test"
     if is_plain_doc:
@@ -96,6 +102,10 @@ def _get_report_render_context(report, request, *, preview_mode, auto_print, is_
     context["report_ceo_content"] = mark_safe(report.ceo_content or "")
     context.update(_build_report_date_context(report))
     return context
+
+
+def _get_public_report_or_404(pk):
+    return get_object_or_404(Report.objects.select_related("booking", "booking__customer", "booking__sample_name"), pk=pk, status__in=PUBLIC_REPORT_ALLOWED_STATUSES)
 
 
 class ReportListView(PermissionRequiredMixin, RoleRequiredMixin, ListView):
@@ -162,6 +172,27 @@ class ReportCreateOrUpdateView(PermissionRequiredMixin, RoleRequiredMixin, Updat
             raise Http404("Only approved bookings can generate report workflow.")
         report, _ = Report.objects.get_or_create(booking=booking, defaults={"created_by": self.request.user})
         return report
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        booking = self.object.booking
+        tests = booking.test_to_be_performed.select_related("report_template").order_by("name")
+        
+        tests_with_templates = []
+        tests_without_templates = []
+        
+        for test in tests:
+            template = getattr(test, "report_template", None)
+            if template and template.is_active:
+                tests_with_templates.append((test.name, template.name))
+            else:
+                tests_without_templates.append(test.name)
+        
+        context["tests_info"] = {
+            "with_templates": tests_with_templates,
+            "without_templates": tests_without_templates,
+        }
+        return context
 
     def form_valid(self, form):
         if not (self.request.user.is_superuser or has_role(self.request.user, "Checked By")):
@@ -310,6 +341,28 @@ class COAPrintView(PermissionRequiredMixin, RoleRequiredMixin, DetailView):
             self.request,
             preview_mode=True,
             auto_print=q.get("autoprint") == "1",
+            is_plain_doc=q.get("plain") == "1",
+            is_test_report=q.get("doc") == "test",
+        )
+        context["is_letterhead"] = q.get("letterhead") == "1"
+        return context
+
+
+class PublicCOAPrintView(DetailView):
+    model = Report
+    template_name = "reports/coa_print.html"
+    context_object_name = "report"
+
+    def get_object(self, queryset=None):
+        return _get_public_report_or_404(self.kwargs["pk"])
+
+    def get_context_data(self, **kwargs):
+        q = self.request.GET
+        context = _get_report_render_context(
+            self.object,
+            self.request,
+            preview_mode=True,
+            auto_print=False,
             is_plain_doc=q.get("plain") == "1",
             is_test_report=q.get("doc") == "test",
         )

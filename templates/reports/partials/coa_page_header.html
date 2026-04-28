@@ -1,3 +1,4 @@
+{% load report_extras %}
 <div class="coa-page-header{% if is_continuation %} coa-continuation-header{% endif %}">
   <div class="coa-doc-head">
     {% if not is_plain_doc %}
@@ -23,9 +24,9 @@
         <td colspan="5" class="full-value">
           <div class="meta-primary">{{ report.booking.customer.name }}</div>
           {% if report.booking.customer.address %}
-          <div class="meta-secondary">{{ report.booking.customer.address|linebreaksbr }}</div>
+          <div class="meta-secondary meta-secondary--single-line">{{ report.booking.customer.address|single_line }}</div>
           {% elif report.booking.sample_location %}
-          <div class="meta-secondary">{{ report.booking.sample_location|linebreaksbr }}</div>
+          <div class="meta-secondary meta-secondary--single-line">{{ report.booking.sample_location|single_line }}</div>
           {% endif %}
         </td>
       </tr>

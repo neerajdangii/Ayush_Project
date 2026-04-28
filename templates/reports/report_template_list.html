@@ -18,8 +18,6 @@
         <thead class="table-light">
           <tr>
             <th>Name</th>
-            <th>Sample Name</th>
-            <th>Protocol</th>
             <th>Status</th>
             <th>Created</th>
             <th>Action</th>
@@ -34,8 +32,6 @@
               <div class="text-muted small">{{ template.description }}</div>
               {% endif %}
             </td>
-            <td>{{ template.sample_name.name|default:"All Samples" }}</td>
-            <td>{{ template.protocol.name|default:"All Protocols" }}</td>
             <td>
               {% if template.is_active %}
               <span class="badge text-bg-success">Active</span>
@@ -58,7 +54,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="6" class="text-center text-muted">No report templates yet.</td>
+            <td colspan="4" class="text-center text-muted">No report templates yet.</td>
           </tr>
           {% endfor %}
         </tbody>
