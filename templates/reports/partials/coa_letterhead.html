@@ -93,10 +93,10 @@
       <div class="coa-section-title">Result of Analysis</div>
       <div class="coa-result coa-page-result">
         {% if initial_result_html %}
-          {{ initial_result_html }}
+          {{ initial_result_html|safe }}
         {% endif %}
         {% if initial_tail_html %}
-          {{ initial_tail_html }}
+          {{ initial_tail_html|safe }}
         {% endif %}
       </div>
     </div>

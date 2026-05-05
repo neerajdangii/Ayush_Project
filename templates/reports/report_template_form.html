@@ -2,6 +2,20 @@
 {% load static %}
 {% block title %}{{ page_title }} | LIMS{% endblock %}
 {% block extra_head %}
+<script>
+  window.tinyMCEPreInit = {
+    base: "{% static 'js/tinymce' %}",
+    baseURL: "{% static 'js/tinymce' %}",
+    suffix: ".min"
+  };
+  window.arlTinyMceConfig = {
+    baseUrl: "{% static 'js/tinymce' %}",
+    skinUrl: "{% static 'js/tinymce/skins/ui/oxide' %}",
+    contentCss: "{% static 'js/tinymce/skins/content/default/content.min.css' %}",
+    iconsUrl: "{% static 'js/tinymce/icons/default/icons.min.js' %}",
+    themeUrl: "{% static 'js/tinymce/themes/silver/theme.min.js' %}"
+  };
+</script>
 <script src="{% static 'js/tinymce/tinymce.min.js' %}"></script>
 {% endblock %}
 {% block content %}
@@ -57,66 +71,126 @@
 {% endblock %}
 {% block extra_js %}
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    if (!window.tinymce) {
-      return;
-    }
-    tinymce.init({
-      selector: 'textarea[data-editor="tinymce"]',
-      height: 560,
-      menubar: 'file edit view insert format table tools',
-      branding: false,
-      plugins: 'lists table link code advlist charmap searchreplace wordcount preview',
-      toolbar_sticky: true,
-      toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | outdent indent | bullist numlist | table | removeformat code preview',
-      font_family_formats: 'Helvetica=helvetica,arial,sans-serif;Times New Roman=times new roman,times,serif;Calibri=calibri,sans-serif;Courier New=courier new,courier,monospace',
-      content_style: 'html,body{height:100%;} body{font-family:Helvetica,Arial,sans-serif;font-size:12pt;line-height:1.35;padding:12px;overflow-y:auto;overscroll-behavior:contain;} table{border-collapse:collapse;} table td, table th{border:1px solid #111;padding:6px;}',
-      table_default_attributes: { border: '1', style: 'border-collapse:collapse;width:100%;' },
-      table_default_styles: {},
-      table_responsive_width: true,
-      license_key: 'gpl',
-      setup: function (editor) {
-        editor.on('init', function () {
-          const doc = editor.getDoc();
-          if (!doc) {
-            return;
-          }
+  (function () {
+    let tries = 0;
 
-          doc.addEventListener('wheel', function (event) {
-            const scrollingElement = doc.scrollingElement || doc.documentElement || doc.body;
-            if (!scrollingElement) {
+    function buildTemplateEditorConfig() {
+      return {
+        base_url: "{% static 'js/tinymce' %}",
+        suffix: ".min",
+        skin_url: "{% static 'js/tinymce/skins/ui/oxide' %}",
+        content_css: "{% static 'js/tinymce/skins/content/default/content.min.css' %}",
+        icons: 'default',
+        theme: 'silver',
+        selector: 'textarea[data-editor="tinymce"]',
+        height: 560,
+        menubar: 'file edit view insert format table tools',
+        branding: false,
+        content_style: 'html,body{height:100%;} body{font-family:Helvetica,Arial,sans-serif;font-size:12pt;line-height:1.35;padding:12px;overflow-y:auto;overscroll-behavior:contain;} table{border-collapse:collapse;} table td, table th{border:1px solid #111;padding:6px;}',
+        table_default_attributes: { border: '1', style: 'border-collapse:collapse;width:100%;' },
+        table_default_styles: {},
+        init_instance_callback: function (editor) {
+          editor.getElement().dataset.tinymceReady = '1';
+        }
+      };
+    }
+
+    function bindTemplateFormSave() {
+      const form = document.getElementById('report-template-form');
+      const saveButton = document.getElementById('save-template-btn');
+
+      const syncEditorContent = function () {
+        if (window.tinymce) {
+          window.tinymce.triggerSave();
+        }
+      };
+
+      if (form && !form.dataset.tinymceBound) {
+        form.dataset.tinymceBound = '1';
+        form.addEventListener('submit', function () {
+          syncEditorContent();
+        });
+      }
+
+      if (form && saveButton && !saveButton.dataset.tinymceBound) {
+        saveButton.dataset.tinymceBound = '1';
+        saveButton.addEventListener('click', function () {
+          syncEditorContent();
+        });
+      }
+    }
+
+    function startTemplateEditor() {
+      const target = document.querySelector('textarea[data-editor="tinymce"]');
+      if (!target) {
+        return;
+      }
+
+      bindTemplateFormSave();
+
+      if (!window.tinymce || typeof window.tinymce.init !== 'function') {
+        if (tries < 40) {
+          tries += 1;
+          window.setTimeout(startTemplateEditor, 150);
+        }
+        return;
+      }
+
+      if (window.tinymce.get(target.id)) {
+        return;
+      }
+
+      const fullConfig = Object.assign(buildTemplateEditorConfig(), {
+        plugins: 'lists table link code advlist charmap searchreplace wordcount preview',
+        toolbar_sticky: true,
+        toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | outdent indent | bullist numlist | table | removeformat code preview',
+        font_family_formats: 'Helvetica=helvetica,arial,sans-serif;Times New Roman=times new roman,times,serif;Calibri=calibri,sans-serif;Courier New=courier new,courier,monospace',
+        table_responsive_width: true,
+        license_key: 'gpl',
+        setup: function (editor) {
+          editor.on('init', function () {
+            const doc = editor.getDoc();
+            if (!doc) {
               return;
             }
 
-            const maxScrollTop = scrollingElement.scrollHeight - scrollingElement.clientHeight;
-            if (maxScrollTop > 0) {
-              event.stopPropagation();
-            }
-          }, { passive: true });
-        });
-      }
-    });
+            doc.addEventListener('wheel', function (event) {
+              const scrollingElement = doc.scrollingElement || doc.documentElement || doc.body;
+              if (!scrollingElement) {
+                return;
+              }
 
-    const form = document.getElementById('report-template-form');
-    const saveButton = document.getElementById('save-template-btn');
-
-    const syncEditorContent = function () {
-      if (window.tinymce) {
-        window.tinymce.triggerSave();
-      }
-    };
-
-    if (form) {
-      form.addEventListener('submit', function () {
-        syncEditorContent();
+              const maxScrollTop = scrollingElement.scrollHeight - scrollingElement.clientHeight;
+              if (maxScrollTop > 0) {
+                event.stopPropagation();
+              }
+            }, { passive: true });
+          });
+        }
       });
+
+      try {
+        window.tinymce.init(fullConfig);
+      } catch (error) {
+        console.error('Full template TinyMCE init failed, falling back to minimal config.', error);
+        try {
+          window.tinymce.init(Object.assign(buildTemplateEditorConfig(), {
+            plugins: 'lists table link code advlist',
+            toolbar: 'undo redo | bold italic underline | alignleft aligncenter alignright | bullist numlist | table | code'
+          }));
+        } catch (fallbackError) {
+          console.error('Minimal template TinyMCE init failed.', fallbackError);
+        }
+      }
     }
 
-    if (form && saveButton) {
-      saveButton.addEventListener('click', function () {
-        syncEditorContent();
-      });
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', startTemplateEditor);
+    } else {
+      startTemplateEditor();
     }
-  });
+
+    window.addEventListener('load', startTemplateEditor);
+  })();
 </script>
 {% endblock %}

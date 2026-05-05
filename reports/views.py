@@ -136,6 +136,17 @@ class ReportListView(PermissionRequiredMixin, RoleRequiredMixin, ListView):
         ).order_by("-created_at")
         search = self.request.GET.get("q", "").strip()
         search_by = self.request.GET.get("search_by", "sample_reg").strip()
+        status_filter = self.request.GET.get("status", "").strip()
+        customer_filter = self.request.GET.get("customer", "").strip()
+
+        if status_filter == Report.FinalOutcome.PASS:
+            qs = qs.filter(final_outcome=Report.FinalOutcome.PASS)
+        elif status_filter == "pending":
+            qs = qs.exclude(final_outcome=Report.FinalOutcome.PASS)
+
+        if customer_filter:
+            qs = qs.filter(booking__customer_id=customer_filter)
+
         if search:
             if search_by == "booking_id":
                 qs = qs.filter(booking__tracking_code__icontains=search)
@@ -153,8 +164,23 @@ class ReportListView(PermissionRequiredMixin, RoleRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["search_query"] = self.request.GET.get("q", "").strip()
         context["search_by"] = self.request.GET.get("search_by", "sample_reg").strip()
+        context["status_filter"] = self.request.GET.get("status", "").strip()
+        context["customer_filter"] = self.request.GET.get("customer", "").strip()
+        context["customer_options"] = (
+            Booking.objects.select_related("customer")
+            .filter(customer__isnull=False)
+            .values_list("customer_id", "customer__name")
+            .distinct()
+            .order_by("customer__name")
+        )
         context["show_saved_popup"] = self.request.GET.get("saved") == "1"
         context["saved_booking_id"] = self.request.GET.get("booking_id", "").strip()
+        if context.get("is_paginated"):
+            context["page_numbers"] = context["page_obj"].paginator.get_elided_page_range(
+                context["page_obj"].number,
+                on_each_side=2,
+                on_ends=1,
+            )
         return context
 
 

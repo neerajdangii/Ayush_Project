@@ -3,6 +3,20 @@
 {% block title %}COA Edit | LIMS{% endblock %}
 
 {% block extra_head %}
+<script>
+  window.tinyMCEPreInit = {
+    base: "{% static 'js/tinymce' %}",
+    baseURL: "{% static 'js/tinymce' %}",
+    suffix: ".min"
+  };
+  window.arlTinyMceConfig = {
+    baseUrl: "{% static 'js/tinymce' %}",
+    skinUrl: "{% static 'js/tinymce/skins/ui/oxide' %}",
+    contentCss: "{% static 'js/tinymce/skins/content/default/content.min.css' %}",
+    iconsUrl: "{% static 'js/tinymce/icons/default/icons.min.js' %}",
+    themeUrl: "{% static 'js/tinymce/themes/silver/theme.min.js' %}"
+  };
+</script>
 <script src="{% static 'js/tinymce/tinymce.min.js' %}"></script>
 <link rel="stylesheet" href="{% static 'css/coa_edit.css' %}">
 <style>
@@ -186,9 +200,11 @@
 
 {{ remark_options|json_script:"remark-options-data" }}
 {{ old_report_options|json_script:"old-report-options-data" }}
+{{ template_options|json_script:"template-options-data" }}
 <script id="report-api-detail-url" type="application/json">"{% url 'reports:report_api_detail' 0 %}"</script>
+<script id="report-template-content-url" type="application/json">"{% url 'reports:template_content' 0 %}"</script>
 
-<script src="{% static 'js/coa_edit.js' %}?v=20260421-1"></script>
+<script src="{% static 'js/coa_edit.js' %}?v=20260505-2"></script>
 
 <style>
   .coa-remark-picker {

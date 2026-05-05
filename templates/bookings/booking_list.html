@@ -22,6 +22,21 @@
         <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Type and search...">
       </div>
       <div class="col-md-2">
+        <select name="status" class="form-select">
+          <option value="">All Status</option>
+          <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+          <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="customer" class="form-select">
+          <option value="">All Company</option>
+          {% for customer in customer_options %}
+          <option value="{{ customer.pk }}" {% if customer_filter == customer.pk|stringformat:'s' %}selected{% endif %}>{{ customer.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
         <button class="btn btn-outline-primary w-100" type="submit">Search</button>
       </div>
       <div class="col-md-2">
@@ -103,22 +118,33 @@
 
     {% if is_paginated %}
     <nav>
-      <ul class="pagination">
+      <ul class="pagination flex-wrap">
         {% if page_obj.has_previous %}
-          <li class="page-item"><a class="page-link" href="?search_by={{ search_by }}&q={{ q }}&page={{ page_obj.previous_page_number }}">Previous</a></li>
+          <li class="page-item"><a class="page-link" href="?search_by={{ search_by }}&q={{ q }}&status={{ status_filter }}&customer={{ customer_filter }}&page={{ page_obj.previous_page_number }}">Previous</a></li>
         {% else %}
           <li class="page-item disabled"><span class="page-link">Previous</span></li>
         {% endif %}
 
-        <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+        {% for page_number in page_numbers %}
+          {% if page_number == page_obj.paginator.ELLIPSIS %}
+            <li class="page-item disabled"><span class="page-link">{{ page_number }}</span></li>
+          {% elif page_number == page_obj.number %}
+            <li class="page-item active"><span class="page-link">{{ page_number }}</span></li>
+          {% else %}
+            <li class="page-item"><a class="page-link" href="?search_by={{ search_by }}&q={{ q }}&status={{ status_filter }}&customer={{ customer_filter }}&page={{ page_number }}">{{ page_number }}</a></li>
+          {% endif %}
+        {% endfor %}
 
         {% if page_obj.has_next %}
-          <li class="page-item"><a class="page-link" href="?search_by={{ search_by }}&q={{ q }}&page={{ page_obj.next_page_number }}">Next</a></li>
+          <li class="page-item"><a class="page-link" href="?search_by={{ search_by }}&q={{ q }}&status={{ status_filter }}&customer={{ customer_filter }}&page={{ page_obj.next_page_number }}">Next</a></li>
         {% else %}
           <li class="page-item disabled"><span class="page-link">Next</span></li>
         {% endif %}
       </ul>
     </nav>
+    <div class="text-muted small">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}, showing {{ page_obj.object_list|length }} record(s) out of {{ page_obj.paginator.count }} total
+    </div>
     {% endif %}
   </div>
 </div>

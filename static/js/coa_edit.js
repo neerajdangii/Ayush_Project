@@ -1,7 +1,179 @@
 (function(){
   'use strict';
 
-  document.addEventListener('DOMContentLoaded', function(){
+  function buildTinyMceBaseConfig() {
+    return {
+      base_url: window.arlTinyMceConfig && window.arlTinyMceConfig.baseUrl ? window.arlTinyMceConfig.baseUrl : (window.tinyMCEPreInit && window.tinyMCEPreInit.baseURL ? window.tinyMCEPreInit.baseURL : '/static/js/tinymce'),
+      suffix: window.tinyMCEPreInit && window.tinyMCEPreInit.suffix ? window.tinyMCEPreInit.suffix : '.min',
+      skin_url: window.arlTinyMceConfig && window.arlTinyMceConfig.skinUrl ? window.arlTinyMceConfig.skinUrl : undefined,
+      content_css: window.arlTinyMceConfig && window.arlTinyMceConfig.contentCss ? window.arlTinyMceConfig.contentCss : undefined,
+      icons: 'default',
+      theme: 'silver',
+      selector: 'textarea[data-editor="tinymce"]',
+      height: 520,
+      menubar: 'file edit view insert format table tools',
+      branding: false,
+      content_style: 'html,body{height:100%;} body{font-family:Helvetica,Arial,sans-serif;font-size:12pt;line-height:1.35;padding:12px;overflow-y:auto;overscroll-behavior:contain;} table{border-collapse:collapse;} table td, table th{border:1px solid #111;padding:6px;}',
+      table_default_attributes: { border: '1', style: 'border-collapse:collapse;width:100%;' },
+      table_default_styles: {},
+      init_instance_callback: function (editor) {
+        editor.getElement().dataset.tinymceReady = '1';
+      }
+    };
+  }
+
+  function initTinyMceForCoa(targets) {
+    if (!targets.length || !window.tinymce || typeof window.tinymce.init !== 'function') {
+      return false;
+    }
+
+    if (window.tinymce.get('editor')) {
+      return true;
+    }
+
+    const defaultResultTable = `
+    <table style="width:100%;border-collapse:collapse;" border="1">
+      <thead>
+        <tr>
+          <th style="width:8%;text-align:center;">S.No.</th>
+          <th style="width:32%;text-align:center;">Test Parameters</th>
+          <th style="width:25%;text-align:center;">Results/Observation</th>
+          <th style="width:20%;text-align:center;">Specification/Limits</th>
+          <th style="width:15%;text-align:center;">Method</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="text-align:center;">1</td>
+          <td>Parameter Name</td>
+          <td style="text-align:center;">&nbsp;</td>
+          <td style="text-align:center;">&nbsp;</td>
+          <td style="text-align:center;">&nbsp;</td>
+        </tr>
+      </tbody>
+    </table>
+    `;
+
+    const defaultRow = `
+      <tr>
+        <td style="text-align:center;">#</td>
+        <td>New Parameter</td>
+        <td style="text-align:center;">Result</td>
+        <td style="text-align:center;">Limit</td>
+        <td style="text-align:center;">Method</td>
+      </tr>
+    `;
+
+    const fullConfig = Object.assign(buildTinyMceBaseConfig(), {
+      plugins: 'lists table link code advlist charmap searchreplace wordcount preview',
+      toolbar_sticky: true,
+      toolbar: 'undo redo | addTest addParameter | blocks fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | outdent indent | bullist numlist | table tabledelete | removeformat code preview',
+      font_family_formats: 'Helvetica=helvetica,arial,sans-serif;Times New Roman=times new roman,times,serif;Calibri=calibri,sans-serif;Courier New=courier new,courier,monospace',
+      table_responsive_width: true,
+      license_key: 'gpl',
+      setup: (editor) => {
+        const syncEditorContent = () => {
+          editor.save();
+        };
+
+        editor.on('change input undo redo setcontent', syncEditorContent);
+        editor.on('init', () => {
+          const doc = editor.getDoc();
+          if (!doc) {
+            return;
+          }
+
+          doc.addEventListener('wheel', (event) => {
+            const scrollingElement = doc.scrollingElement || doc.documentElement || doc.body;
+            if (!scrollingElement) {
+              return;
+            }
+
+            const maxScrollTop = scrollingElement.scrollHeight - scrollingElement.clientHeight;
+            if (maxScrollTop > 0) {
+              event.stopPropagation();
+            }
+          }, { passive: true });
+        });
+
+        editor.ui.registry.addMenuButton('addTest', {
+          text: 'Add Test',
+          fetch: (callback) => {
+            callback([
+              {
+                type: 'menuitem',
+                text: 'Load Simple Result Table',
+                onAction: () => {
+                  const existingContent = (editor.getContent({ format: 'text' }) || '').trim();
+                  const shouldReplace = !existingContent || window.confirm(
+                    'Load the simple result table? This will replace the current editor content.'
+                  );
+
+                  if (!shouldReplace) {
+                    return;
+                  }
+
+                  editor.setContent(defaultResultTable);
+                  editor.focus();
+                }
+              },
+              {
+                type: 'menuitem',
+                text: 'Insert Test Row',
+                onAction: () => editor.insertContent(defaultRow)
+              }
+            ]);
+          }
+        });
+        editor.ui.registry.addMenuButton('addParameter', {
+          text: 'Add Parameter',
+          fetch: (callback) => {
+            callback([
+              {
+                type: 'menuitem',
+                text: 'Insert Simple Test Row',
+                onAction: () => editor.insertContent(`
+                  <tr>
+                    <td style="padding:6px;text-align:center;">#</td>
+                    <td style="padding:6px;">New Parameter</td>
+                    <td style="padding:6px;text-align:center;">&nbsp;</td>
+                    <td style="padding:6px;text-align:center;">&nbsp;</td>
+                    <td style="padding:6px;text-align:center;">&nbsp;</td>
+                  </tr>
+                `)
+              }
+            ]);
+          }
+        });
+      }
+    });
+
+    try {
+      window.tinymce.init(fullConfig);
+    } catch (error) {
+      console.error('Full TinyMCE init failed, falling back to minimal config.', error);
+      try {
+        window.tinymce.init(Object.assign(buildTinyMceBaseConfig(), {
+          plugins: 'lists table link code advlist',
+          toolbar: 'undo redo | bold italic underline | alignleft aligncenter alignright | bullist numlist | table | code'
+        }));
+      } catch (fallbackError) {
+        console.error('Minimal TinyMCE init failed.', fallbackError);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function initCoaEditPage() {
+    if (document.body && document.body.dataset.coaEditInitialized === '1') {
+      return;
+    }
+    if (document.body) {
+      document.body.dataset.coaEditInitialized = '1';
+    }
+
     const savePopup = document.querySelector('.coa-save-popup');
     if (savePopup) {
       setTimeout(() => {
@@ -10,130 +182,122 @@
     }
 
     const targets = document.querySelectorAll('textarea[data-editor="tinymce"]');
+    if (targets.length) {
+      let editorReady = initTinyMceForCoa(targets);
+      if (!editorReady) {
+        let tries = 0;
+        const retryEditorInit = () => {
+          editorReady = initTinyMceForCoa(targets);
+          if (!editorReady && tries < 40) {
+            tries += 1;
+            window.setTimeout(retryEditorInit, 150);
+          }
+        };
+        retryEditorInit();
+      }
+    }
 
-    if (targets.length && window.tinymce) {
-      const defaultResultTable = `
-      <table style="width:100%;border-collapse:collapse;" border="1">
-        <thead>
-          <tr>
-            <th style="width:8%;text-align:center;">S.No.</th>
-            <th style="width:32%;text-align:center;">Test Parameters</th>
-            <th style="width:25%;text-align:center;">Results/Observation</th>
-            <th style="width:20%;text-align:center;">Specification/Limits</th>
-            <th style="width:15%;text-align:center;">Method</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style="text-align:center;">1</td>
-            <td>Parameter Name</td>
-            <td style="text-align:center;">&nbsp;</td>
-            <td style="text-align:center;">&nbsp;</td>
-            <td style="text-align:center;">&nbsp;</td>
-          </tr>
-        </tbody>
-      </table>
-      `;
+    const reportTemplateSelect = document.getElementById('id_report_template');
+    const reportTemplateUrlNode = document.getElementById('report-template-content-url');
+    const editorTextarea = document.getElementById('editor');
 
-      const defaultRow = `
-        <tr>
-          <td style="text-align:center;">#</td>
-          <td>New Parameter</td>
-          <td style="text-align:center;">Result</td>
-          <td style="text-align:center;">Limit</td>
-          <td style="text-align:center;">Method</td>
-        </tr>
-      `;
+    const getEditorInstance = () => (
+      window.tinymce && typeof window.tinymce.get === 'function'
+        ? window.tinymce.get('editor')
+        : null
+    );
 
-      tinymce.init({
-        selector: 'textarea[data-editor="tinymce"]',
-        height: 520,
-        menubar: 'file edit view insert format table tools',
-        branding: false,
-        plugins: 'lists table link code advlist charmap searchreplace wordcount preview',
-        toolbar_sticky: true,
-        toolbar: 'undo redo | addTest addParameter | blocks fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | outdent indent | bullist numlist | table tabledelete | removeformat code preview',
-        font_family_formats: 'Helvetica=helvetica,arial,sans-serif;Times New Roman=times new roman,times,serif;Calibri=calibri,sans-serif;Courier New=courier new,courier,monospace',
-        content_style: 'html,body{height:100%;} body{font-family:Helvetica,Arial,sans-serif;font-size:12pt;line-height:1.35;padding:12px;overflow-y:auto;overscroll-behavior:contain;} table{border-collapse:collapse;} table td, table th{border:1px solid #111;padding:6px;}',
-        table_default_attributes: { border: '1', style: 'border-collapse:collapse;width:100%;' },
-        table_default_styles: {},
-        table_responsive_width: true,
-        license_key: 'gpl',
-        setup: (editor) => {
-          const syncEditorContent = () => {
-            editor.save();
-          };
+    const getEditorContent = () => {
+      const editor = getEditorInstance();
+      if (editor) {
+        return editor.getContent() || '';
+      }
+      return editorTextarea ? (editorTextarea.value || '') : '';
+    };
 
-          editor.on('change input undo redo setcontent', syncEditorContent);
-          editor.on('init', () => {
-            const doc = editor.getDoc();
-            if (!doc) {
-              return;
-            }
+    const setEditorContent = (content) => {
+      const nextContent = content || '';
+      const editor = getEditorInstance();
+      if (editor) {
+        editor.setContent(nextContent);
+        editor.save();
+        return;
+      }
+      if (editorTextarea) {
+        editorTextarea.value = nextContent;
+        editorTextarea.dispatchEvent(new Event('input'));
+      }
+    };
 
-            doc.addEventListener('wheel', (event) => {
-              const scrollingElement = doc.scrollingElement || doc.documentElement || doc.body;
-              if (!scrollingElement) {
-                return;
-              }
+    const isEditorEmpty = () => {
+      const textOnly = (getEditorContent() || '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      return !textOnly;
+    };
 
-              const maxScrollTop = scrollingElement.scrollHeight - scrollingElement.clientHeight;
-              if (maxScrollTop > 0) {
-                event.stopPropagation();
-              }
-            }, { passive: true });
-          });
+    const applyTemplateById = (templateId, forceReplace) => {
+      if (!templateId || !reportTemplateUrlNode) {
+        return Promise.resolve(false);
+      }
 
-          editor.ui.registry.addMenuButton('addTest', {
-            text: 'Add Test',
-            fetch: (callback) => {
-              callback([
-                {
-                  type: 'menuitem',
-                  text: 'Load Simple Result Table',
-                  onAction: () => {
-                    const existingContent = (editor.getContent({ format: 'text' }) || '').trim();
-                    const shouldReplace = !existingContent || window.confirm(
-                      'Load the simple result table? This will replace the current editor content.'
-                    );
+      const urlPattern = JSON.parse(reportTemplateUrlNode.textContent || '""');
+      if (!urlPattern) {
+        return Promise.resolve(false);
+      }
 
-                    if (!shouldReplace) {
-                      return;
-                    }
+      const shouldReplace = forceReplace || isEditorEmpty();
+      if (!shouldReplace) {
+        return Promise.resolve(false);
+      }
 
-                    editor.setContent(defaultResultTable);
-                    editor.focus();
-                  }
-                },
-                {
-                  type: 'menuitem',
-                  text: 'Insert Test Row',
-                  onAction: () => editor.insertContent(defaultRow)
-                }
-              ]);
-            }
-          });
-          editor.ui.registry.addMenuButton('addParameter', {
-            text: 'Add Parameter',
-            fetch: (callback) => {
-              callback([
-                {
-                  type: 'menuitem',
-                  text: 'Insert Simple Test Row',
-                  onAction: () => editor.insertContent(`
-                    <tr>
-                      <td style="padding:6px;text-align:center;">#</td>
-                      <td style="padding:6px;">New Parameter</td>
-                      <td style="padding:6px;text-align:center;">&nbsp;</td>
-                      <td style="padding:6px;text-align:center;">&nbsp;</td>
-                      <td style="padding:6px;text-align:center;">&nbsp;</td>
-                    </tr>
-                  `)
-                }
-              ]);
-            }
-          });
+      const requestUrl = urlPattern.replace(/0\/content\/$/, `${templateId}/content/`);
+      return fetch(requestUrl, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Template request failed');
+          }
+          return response.json();
+        })
+        .then((payload) => {
+          setEditorContent(payload.content || '');
+          return true;
+        })
+        .catch((err) => {
+          console.error('Unable to load selected template content', err);
+          return false;
+        });
+    };
+
+    if (reportTemplateSelect) {
+      const initialTemplateId = reportTemplateSelect.value;
+      if (initialTemplateId) {
+        window.setTimeout(() => {
+          applyTemplateById(initialTemplateId, false);
+        }, 150);
+      }
+
+      reportTemplateSelect.addEventListener('change', () => {
+        const selectedTemplateId = reportTemplateSelect.value;
+        if (!selectedTemplateId) {
+          return;
         }
+
+        const hasExistingContent = !isEditorEmpty();
+        if (hasExistingContent) {
+          const shouldReplace = window.confirm(
+            'Load this template into the report? This will replace the current result section content.'
+          );
+          if (!shouldReplace) {
+            return;
+          }
+        }
+
+        applyTemplateById(selectedTemplateId, true);
       });
     }
 
@@ -515,5 +679,11 @@
         });
       });
     });
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCoaEditPage);
+  } else {
+    initCoaEditPage();
+  }
 })();

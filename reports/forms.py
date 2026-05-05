@@ -1,6 +1,7 @@
 from django import forms
 from django.db.models import Q
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 from .models import Report, ReportRemark, ReportTemplate
 from .template_library import build_generic_result_table, populate_main_table_rows
@@ -8,6 +9,14 @@ from .template_library import build_generic_result_table, populate_main_table_ro
 DATE_FORMAT_DMY = "%d/%m/%Y"
 DATE_INPUT_FORMAT = "%Y-%m-%d"
 DATE_PLACEHOLDER = "DD/MM/YYYY"
+
+
+def _local_date(value):
+    if not value:
+        return None
+    if hasattr(value, "tzinfo") and timezone.is_aware(value):
+        value = timezone.localtime(value)
+    return value.date() if hasattr(value, "date") else value
 
 
 class ReportApprovalForm(forms.ModelForm):
@@ -64,12 +73,8 @@ class ReportApprovalForm(forms.ModelForm):
         self.fields["analysis_start_date"].input_formats = [DATE_INPUT_FORMAT, DATE_FORMAT_DMY]
         self.fields["analysis_end_date"].input_formats = [DATE_INPUT_FORMAT, DATE_FORMAT_DMY]
         if self.instance and self.instance.pk and self.instance.booking_id:
-            self.fields["analysis_start_date"].initial = (
-                self.instance.booking.analysis_start_date.date() if self.instance.booking.analysis_start_date else None
-            )
-            self.fields["analysis_end_date"].initial = (
-                self.instance.booking.analysis_end_date.date() if self.instance.booking.analysis_end_date else None
-            )
+            self.fields["analysis_start_date"].initial = _local_date(self.instance.booking.analysis_start_date)
+            self.fields["analysis_end_date"].initial = _local_date(self.instance.booking.analysis_end_date)
             if self.instance.incharge_id:
                 self.fields["incharge_user"].initial = self.instance.incharge_id
             else:
@@ -102,12 +107,16 @@ class COAEditForm(forms.ModelForm):
             selected_template = self._suggest_template()
         if selected_template:
             self.initial["report_template"] = selected_template.pk
+            self.fields["report_template"].initial = selected_template.pk
 
         existing_content = (self.instance.ceo_content or "") if self.instance else ""
         if existing_content:
             self.initial["ceo_content"] = existing_content
+            self.fields["ceo_content"].initial = existing_content
         else:
-            self.initial["ceo_content"] = self._build_default_content(selected_template)
+            default_content = self._build_default_content(selected_template)
+            self.initial["ceo_content"] = default_content
+            self.fields["ceo_content"].initial = default_content
 
     def _selected_tests(self):
         if not self.instance or not getattr(self.instance, "booking", None):

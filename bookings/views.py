@@ -201,6 +201,17 @@ class BookingListView(LoginRequiredMixin, ListView):
         )
         search = self.request.GET.get("q", "").strip()
         search_by = self.request.GET.get("search_by", "sample_reg_no").strip()
+        status_filter = self.request.GET.get("status", "").strip()
+        customer_filter = self.request.GET.get("customer", "").strip()
+
+        if status_filter == Booking.Status.PENDING:
+            qs = qs.filter(status=Booking.Status.PENDING)
+        elif status_filter == Booking.Status.APPROVED:
+            qs = qs.filter(status=Booking.Status.APPROVED)
+
+        if customer_filter:
+            qs = qs.filter(customer_id=customer_filter)
+
         if search:
             if search_by == "customer":
                 qs = qs.filter(customer__name__icontains=search)
@@ -218,6 +229,15 @@ class BookingListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["q"] = self.request.GET.get("q", "").strip()
         context["search_by"] = self.request.GET.get("search_by", "sample_reg_no").strip()
+        context["status_filter"] = self.request.GET.get("status", "").strip()
+        context["customer_filter"] = self.request.GET.get("customer", "").strip()
+        context["customer_options"] = CustomerMaster.objects.order_by("name")
+        if context.get("is_paginated"):
+            context["page_numbers"] = context["page_obj"].paginator.get_elided_page_range(
+                context["page_obj"].number,
+                on_each_side=2,
+                on_ends=1,
+            )
         return context
 
 
@@ -232,7 +252,7 @@ class BookingApproveView(RoleRequiredMixin, PermissionRequiredMixin, View):
             messages.info(request, "Booking is already approved.")
             return redirect("bookings:list")
         booking.approve(request.user)
-        messages.success(request, "Booking approved.")
+        messages.success(request, f"Booking approved. Booking ID: {booking.tracking_code}")
         return redirect("bookings:list")
 
 
