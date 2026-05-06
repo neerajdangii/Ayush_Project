@@ -3,14 +3,15 @@
 {% block title %}{{ page_title }} | LIMS{% endblock %}
 {% block extra_head %}
 <script>
+  const arlStaticPrefix = "{% get_static_prefix %}";
   window.tinyMCEPreInit = {
-    base: "{% static 'js/tinymce' %}",
-    baseURL: "{% static 'js/tinymce' %}",
+    base: `${arlStaticPrefix}js/tinymce`,
+    baseURL: `${arlStaticPrefix}js/tinymce`,
     suffix: ".min"
   };
   window.arlTinyMceConfig = {
-    baseUrl: "{% static 'js/tinymce' %}",
-    skinUrl: "{% static 'js/tinymce/skins/ui/oxide' %}",
+    baseUrl: `${arlStaticPrefix}js/tinymce`,
+    skinUrl: `${arlStaticPrefix}js/tinymce/skins/ui/oxide`,
     contentCss: "{% static 'js/tinymce/skins/content/default/content.min.css' %}",
     iconsUrl: "{% static 'js/tinymce/icons/default/icons.min.js' %}",
     themeUrl: "{% static 'js/tinymce/themes/silver/theme.min.js' %}"
@@ -76,9 +77,9 @@
 
     function buildTemplateEditorConfig() {
       return {
-        base_url: "{% static 'js/tinymce' %}",
+        base_url: `${arlStaticPrefix}js/tinymce`,
         suffix: ".min",
-        skin_url: "{% static 'js/tinymce/skins/ui/oxide' %}",
+        skin_url: `${arlStaticPrefix}js/tinymce/skins/ui/oxide`,
         content_css: "{% static 'js/tinymce/skins/content/default/content.min.css' %}",
         icons: 'default',
         theme: 'silver',

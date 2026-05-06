@@ -4,14 +4,15 @@
 
 {% block extra_head %}
 <script>
+  const arlStaticPrefix = "{% get_static_prefix %}";
   window.tinyMCEPreInit = {
-    base: "{% static 'js/tinymce' %}",
-    baseURL: "{% static 'js/tinymce' %}",
+    base: `${arlStaticPrefix}js/tinymce`,
+    baseURL: `${arlStaticPrefix}js/tinymce`,
     suffix: ".min"
   };
   window.arlTinyMceConfig = {
-    baseUrl: "{% static 'js/tinymce' %}",
-    skinUrl: "{% static 'js/tinymce/skins/ui/oxide' %}",
+    baseUrl: `${arlStaticPrefix}js/tinymce`,
+    skinUrl: `${arlStaticPrefix}js/tinymce/skins/ui/oxide`,
     contentCss: "{% static 'js/tinymce/skins/content/default/content.min.css' %}",
     iconsUrl: "{% static 'js/tinymce/icons/default/icons.min.js' %}",
     themeUrl: "{% static 'js/tinymce/themes/silver/theme.min.js' %}"
